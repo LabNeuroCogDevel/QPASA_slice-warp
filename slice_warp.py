@@ -12,7 +12,8 @@ import re
 
 
 ## settings
-origdir=os.getcwd()
+#origdir=os.getcwd()
+origdir=os.path.dirname(os.path.realpath(__file__))
 initialdir = "/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
 templatebrain="/opt/ni_tools/standard/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c_brain.nii"
 atlas="%s/slice_atlas.nii.gz"%origdir
@@ -30,7 +31,8 @@ master.filename = \
         tkinter.filedialog.askopenfilename(\
                       initialdir = initialdir,\
                       title = "Select a representative DICOM",\
-                      filetypes = (("Dicoms","MR*"),("all files","*.*")))
+		      )
+                      #filetypes = (("all files","*.*"),("Dicoms","MR*")))
 if not master.filename: sys.exit(1)
 dcmdir = os.path.dirname(master.filename)
 
