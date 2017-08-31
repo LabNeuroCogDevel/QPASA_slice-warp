@@ -10,6 +10,8 @@ import shutil
 import glob
 import re
 
+import nipy, numpy
+
 
 ## settings
 #origdir=os.getcwd()
@@ -34,6 +36,11 @@ master.filename = \
 		      )
                       #filetypes = (("all files","*.*"),("Dicoms","MR*")))
 if not master.filename: sys.exit(1)
+
+# do we havea nii or a dcmdir?
+nii    = "";
+if re.match('.*\.nii(\.gz)?$',master.filename ) : nii = master.filename
+
 dcmdir = os.path.dirname(master.filename)
 
 
@@ -85,9 +92,14 @@ def runcmd(cmd):
    if error.decode():
        logtxt("ERROR: "+error.decode(),'error')
 
-def dicom2nii():
+# copy nii or make form dicom (mprage1.nii.gz)
+def getInitialInput():
     # dcm2niix will put the echo number if we ask for it or not
-    runcmd("dcm2niix -o ./ -f mprage%%e %s"%dcmdir)
+    if(nii==""):
+        runcmd("dcm2niix -o ./ -f mprage%%e %s"%dcmdir)
+    else:
+        runcmd("3dcopy %s mprage1.nii"%nii)
+
     updateimg('mprage1.nii')
     skullstrip()
 
@@ -108,9 +120,8 @@ def update_img_menu():
     update_menu_list(avalImgMenu,allimages)
 
 # take a nii, and show the slicer version of it
-def updateimg(niiimg,overlay=""):
-    #pgmimg=niiimg.replace(".nii.gz",".pgm")
-    pgmimg=re.sub('.nii(.gz)?$','.pgm',niiimg)
+def updateimg(niiimg,overlay="", pgmimg=""):
+    if pgmimg=="": pgmimg = re.sub('.nii(.gz)?$','.pgm',niiimg) #pgmimg=niiimg.replace(".nii.gz",".pgm")
     runcmd("slicer %s %s -a %s "%(overlay,niiimg,pgmimg))
     update_img_menu()
     selectedImg.set(pgmimg)
@@ -131,7 +142,23 @@ def warp():
     runcmd("flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline"%templatebrain)
     runcmd("applyxfm4D %s mprage_bet.nii.gz slice_mprage_rigid.nii.gz direct_std2native_aff.mat -singlematrix"%atlas)
     runcmd("slicer slice_mprage_rigid.nii.gz -a slice_only.pgm")
-    updateimg('mprage_bet.nii.gz','slice_mprage_rigid.nii.gz')
+    updateimg('slice_mprage_rigid.nii.gz','','slice_only.pgm')
+    updateimg('mprage_bet.nii.gz','slice_mprage_rigid.nii.gz','betRed.pgm')
+    updateimg('slice_mprage_rigid.nii.gz','mprage_bet.nii.gz','sliceRed.pgm')
+
+def saveandafni():
+    subprocess.Popen('afni')
+    mprage   = nipy.load_image('mprage1.nii')
+    sliceimg = nipy.load_image('slice_mprage_rigid.nii.gz')
+
+    t1andslc = mprage.get_data()
+    intensityval = numpy.percentile( t1andslc[t1andslc>0], 90)
+    t1andslc = (intensityval * (sliceimg.get_data()>0) ) + t1andslc 
+    t1andslc = mprage.from_image(mprage,data=t1andslc)
+    nipy.save_image(t1andslc,'anatAndSlice.nii.gz')
+    updateimg('anatAndSlice.nii.gz','','anatAndSlice.pgm')
+    
+
 
 ###################
 
@@ -148,20 +175,22 @@ logtxt("saving files to " + tempdir )
 selectedImg.trace("w", change_img_from_menu)
 betgo  = tkinter.Button(master,text='1. strip',command=skullstrip)
 warpgo = tkinter.Button(master,text='2. warp',command=warp)
+savego = tkinter.Button(master,text='3. save',command=saveandafni)
 
 
 ## display
 betscale.pack(side="left")
 betgo.pack(side="left")
 warpgo.pack(side="left")
+savego.pack(side="left")
 avalImgMenu.pack()
-photolabel.pack(side="bottom")
 logarea.pack(side="bottom")
+photolabel.pack(side="bottom")
 #redogo.pack()
 
 ## start
-# run dicom2nii (and skull strip) as soon as we launch
-master.after(0,dicom2nii) 
+# run dicom2nii (and skull strip) or 3dcopy as soon as we launch
+master.after(0,getInitialInput) 
 # show the gui
 tkinter.mainloop()
 
