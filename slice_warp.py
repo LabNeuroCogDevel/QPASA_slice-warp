@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import tkinter 
-from tkinter import filedialog, scrolledtext, WORD
+from tkinter import filedialog, scrolledtext, WORD, messagebox
 
 import tempfile, os, os.path
 import sys
@@ -10,13 +10,18 @@ import shutil
 import glob
 import re
 
-import nipy, numpy
+import nipy, numpy, dicom
 
 
 ## settings
+mrpath='/Volumes/Disk_C/Temp/'
+
 #origdir=os.getcwd()
 origdir=os.path.dirname(os.path.realpath(__file__))
-initialdir = "/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
+
+#initialdir = "/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
+initialdir = mrpath
+
 templatebrain="/opt/ni_tools/standard/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c_brain.nii"
 atlas="%s/slice_atlas.nii.gz"%origdir
 
@@ -25,6 +30,11 @@ atlas="%s/slice_atlas.nii.gz"%origdir
 ## initialize gui
 master = tkinter.Tk()
 master.title('Subject Native Slice Orientation')
+
+## make sure we have the mount
+if not os.path.exists(mrpath): 
+ tkinter.messagebox.showerror("Error","MR is not mounted?! (%s)"%mrpath)
+ sys.exit(1)
 
 
 ## get dicom directory
@@ -147,7 +157,6 @@ def warp():
     updateimg('slice_mprage_rigid.nii.gz','mprage_bet.nii.gz','sliceRed.pgm')
 
 def saveandafni():
-    subprocess.Popen('afni')
     mpragefile = 'mprage1.nii'
     if not os.path.isfile(mpragefile): mpragefile='mprage1.nii.gz'
     mprage   = nipy.load_image(mpragefile)
@@ -155,11 +164,42 @@ def saveandafni():
 
     t1andslc = mprage.get_data()
     intensityval = numpy.percentile( t1andslc[t1andslc>0], 90)
-    t1andslc = (intensityval * (sliceimg.get_data()>0) ) + t1andslc 
-    t1andslc = mprage.from_image(mprage,data=t1andslc)
+    t1andslc_data = (intensityval * (sliceimg.get_data()>0) ) + t1andslc 
+    t1andslc      = mprage.from_image(mprage,data=t1andslc_data)
     nipy.save_image(t1andslc,'anatAndSlice.nii.gz')
     updateimg('anatAndSlice.nii.gz','','anatAndSlice.pgm')
+
+    make_dicom(t1andslc_data)
+
+    subprocess.Popen('afni')
+    subprocess.Popen(['open', tempdir])
+
     
+    
+
+def make_dicom(niidata):
+   savedir = 'slice_warp_dcm'
+   if not os.path.exists(savedir): os.mkdir(savedir)
+
+   alldcms=glob.glob(dcmdir + '/*IMA' )
+   # niiimg = nipy.load_image(nii)
+   # niidata = niiimg.get_data()
+   
+   # d.pixel_array.shape # niidata.shape
+   # (128, 118)          # (96, 118, 128)
+   
+   ndcm=len(alldcms)
+   for i in range(ndcm):
+     dcm = alldcms[i]
+   
+     # transpose directions, flip horz and flip vert
+     ndataford = numpy.fliplr( numpy.flipud( niidata[(ndcm-1-i),:,:].transpose() ) )
+     outname   = savedir + '/' + os.path.basename(dcm) 
+   
+     d = dicom.read_file(dcm)
+     d.pixel_array.flat = ndataford.flatten()
+     d.PixelData = d.pixel_array.tostring()
+     d.save_as(outname)
 
 
 ###################
@@ -167,7 +207,7 @@ def saveandafni():
 ## go to new directory
 tempdir=tempfile.mkdtemp()
 os.chdir(tempdir)
-os.symlink(atlas, './')
+#os.symlink(atlas, './')
 
 ## startup
 logtxt("reading from "    + dcmdir )
