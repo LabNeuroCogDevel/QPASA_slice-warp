@@ -148,7 +148,9 @@ def warp():
 
 def saveandafni():
     subprocess.Popen('afni')
-    mprage   = nipy.load_image('mprage1.nii')
+    mpragefile = 'mprage1.nii'
+    if not os.path.isfile(mpragefile): mpragefile='mprage1.nii.gz'
+    mprage   = nipy.load_image(mpragefile)
     sliceimg = nipy.load_image('slice_mprage_rigid.nii.gz')
 
     t1andslc = mprage.get_data()
@@ -165,6 +167,7 @@ def saveandafni():
 ## go to new directory
 tempdir=tempfile.mkdtemp()
 os.chdir(tempdir)
+os.symlink(atlas, './')
 
 ## startup
 logtxt("reading from "    + dcmdir )
