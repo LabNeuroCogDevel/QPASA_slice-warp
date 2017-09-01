@@ -12,19 +12,24 @@ import re
 
 import nipy, numpy, dicom
 
-
-## settings
-mrpath='/Volumes/Disk_C/Temp/'
-
-#origdir=os.getcwd()
+# where is this script (the slice atlas is probably also here)
 origdir=os.path.dirname(os.path.realpath(__file__))
 
-#initialdir = "/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
+outputdirroot=os.path.expanduser('~/Desktop/slice_warps/'); 
+if not os.path.exists(outputdirroot): os.mkdir(outputdirroot)
+
+## settings
+atlas="%s/slice_atlas.nii.gz"%origdir
+templatebrain="/opt/ni_tools/standard/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c_brain.nii"
+mrpath='/Volumes/Disk_C/Temp/' # mount point for scanner
 initialdir = mrpath
 
-templatebrain="/opt/ni_tools/standard/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c_brain.nii"
-atlas="%s/slice_atlas.nii.gz"%origdir
+filebrowser='open'
 
+# things change if we are testing (local computer)
+if os.uname().nodename in ["reese"]:
+    mrpath="/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
+    initialdir=mrpath
 
 
 ## initialize gui
@@ -47,25 +52,29 @@ master.filename = \
                       #filetypes = (("all files","*.*"),("Dicoms","MR*")))
 if not master.filename: sys.exit(1)
 
-# do we havea nii or a dcmdir?
+dcmdir = os.path.dirname(master.filename)
+# do we have a nii or a dcmdir?
 nii    = "";
 if re.match('.*\.nii(\.gz)?$',master.filename ) : nii = master.filename
 
-dcmdir = os.path.dirname(master.filename)
+# get id from dicom
+if re.match('(^MR.*)|(.*IMA)$',master.filename ) :
+    selectedDicom = dicom.read_file(dcm)
+    subjid=selectedDicom.PatientName + '_' + selectedDicom.PatientID 
+else:
+    subjid='unknown'
+
 
 
 ## define area's used by functions
 
-# skull strip (brain extract - bet)  setting
-betscale = tkinter.Scale(master, from_=1, to=0, resolution=.05)
-betscale.set(.5)
-
 # logging output of commands
 logarea = tkinter.scrolledtext.ScrolledText(master=master,wrap=WORD) #,width=20,height=10)
-logarea.tag_config('info',foreground='blue')
-logarea.tag_config('cmd',foreground='green')
-logarea.tag_config('output',foreground='black')
+logarea.tag_config('info',foreground='green')
+logarea.tag_config('cmd',foreground='blue')
+logarea.tag_config('output',foreground='grey')
 logarea.tag_config('error',foreground='red')
+logarea.tag_config('alert',foreground='orange')
 # display
 #photo=tkinter.PhotoImage(file="mprage_bet.pgm")
 #photolabel=tkinter.Label(master,image=photo)
@@ -93,12 +102,15 @@ def shouldhave(thisfile):
     if not os.path.isfile(thisfile):
        logtxt("ERROR: expected file (%s/%s) does not exist!"%(os.getcwd(),thisfile),'error')
 
-def runcmd(cmd):
-   logtxt("\n[%s %s]"%(datetime.datetime.now(),os.getcwd()),'info')
-   logtxt("%s"%cmd,'cmd')
+def runcmd(cmd,logit=True):
+   if logit: 
+         logtxt("\n[%s %s]"%(datetime.datetime.now(),os.getcwd()),'info')
+         logtxt("%s"%cmd,'cmd')
+
    p = subprocess.Popen(cmd.split(' '),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    output,error = p.communicate()
-   logtxt(output.decode(),'output')
+
+   if logit: logtxt(output.decode(),'output')
    if error.decode():
        logtxt("ERROR: "+error.decode(),'error')
 
@@ -132,7 +144,7 @@ def update_img_menu():
 # take a nii, and show the slicer version of it
 def updateimg(niiimg,overlay="", pgmimg=""):
     if pgmimg=="": pgmimg = re.sub('.nii(.gz)?$','.pgm',niiimg) #pgmimg=niiimg.replace(".nii.gz",".pgm")
-    runcmd("slicer %s %s -a %s "%(overlay,niiimg,pgmimg))
+    runcmd("slicer %s %s -a %s "%(overlay,niiimg,pgmimg),logit=False)
     update_img_menu()
     selectedImg.set(pgmimg)
     #change_img(pgmimg)
@@ -151,10 +163,11 @@ def skullstrip():
 def warp():
     runcmd("flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline"%templatebrain)
     runcmd("applyxfm4D %s mprage_bet.nii.gz slice_mprage_rigid.nii.gz direct_std2native_aff.mat -singlematrix"%atlas)
-    runcmd("slicer slice_mprage_rigid.nii.gz -a slice_only.pgm")
+    runcmd("slicer slice_mprage_rigid.nii.gz -a slice_only.pgm",logit=False)
     updateimg('slice_mprage_rigid.nii.gz','','slice_only.pgm')
     updateimg('mprage_bet.nii.gz','slice_mprage_rigid.nii.gz','betRed.pgm')
     updateimg('slice_mprage_rigid.nii.gz','mprage_bet.nii.gz','sliceRed.pgm')
+    logtxt("[%s] warp finished!"%datetime.datetime.now(),tag='alert')
 
 def saveandafni():
     mpragefile = 'mprage1.nii'
@@ -171,8 +184,8 @@ def saveandafni():
 
     make_dicom(t1andslc_data)
 
-    subprocess.Popen('afni')
-    subprocess.Popen(['open', tempdir])
+    subprocess.Popen(['afni','-com','SET_UNDERLAY anatAndSlice.nii.gz'])
+    subprocess.Popen([filebrowser, tempdir])
 
     
     
@@ -205,7 +218,7 @@ def make_dicom(niidata):
 ###################
 
 ## go to new directory
-tempdir=tempfile.mkdtemp()
+tempdir=tempfile.mkdtemp(dir=outputdirroot,prefix=subjid)
 os.chdir(tempdir)
 #os.symlink(atlas, './')
 
@@ -213,23 +226,33 @@ os.chdir(tempdir)
 logtxt("reading from "    + dcmdir )
 logtxt("saving files to " + tempdir )
 
-## buttons 
-
 selectedImg.trace("w", change_img_from_menu)
-betgo  = tkinter.Button(master,text='1. strip',command=skullstrip)
-warpgo = tkinter.Button(master,text='2. warp',command=warp)
-savego = tkinter.Button(master,text='3. save',command=saveandafni)
 
+## frames
+bframe = tkinter.Frame(master); bframe.pack(side="left")
 
-## display
+# skull strip (brain extract - bet)  setting
+betscale = tkinter.Scale(bframe, from_=1, to=0, resolution=.05)
+betscale.set(.5)
+
+## buttons 
+betgo  = tkinter.Button(bframe,text='0. re-strip',command=skullstrip)
+warpgo = tkinter.Button(bframe,text='1. warp',command=warp)
+makego = tkinter.Button(bframe,text='2. make',command=saveandafni)
+
 betscale.pack(side="left")
-betgo.pack(side="left")
-warpgo.pack(side="left")
-savego.pack(side="left")
+betgo.pack(side="top")
+warpgo.pack(side="top")
+makego.pack(side="top")
+
+## image menu and log
 avalImgMenu.pack()
-logarea.pack(side="bottom")
-photolabel.pack(side="bottom")
-#redogo.pack()
+photolabel.pack()
+logarea.pack()
+# 
+# #redogo.pack()
+
+
 
 ## start
 # run dicom2nii (and skull strip) or 3dcopy as soon as we launch
