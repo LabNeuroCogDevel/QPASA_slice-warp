@@ -160,6 +160,11 @@ def skullstrip():
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
+def run_robex():
+    runcmd("runROBEX.sh mprage1.nii mprage_bet.nii.gz")
+    shouldhave('mprage_bet.nii.gz')
+    updateimg('mprage_bet.nii.gz')
+
 def warp():
     runcmd("flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline"%templatebrain)
     runcmd("applyxfm4D %s mprage_bet.nii.gz slice_mprage_rigid.nii.gz direct_std2native_aff.mat -singlematrix"%atlas)
@@ -171,17 +176,21 @@ def warp():
 
 def saveandafni():
     mpragefile = 'mprage1.nii'
-    if not os.path.isfile(mpragefile): mpragefile='mprage1.nii.gz'
+    # maybe we are using compression:
+    if not os.path.isfile(mpragefile): mpragefile=mpragefile+'.gz'
+
     mprage   = nipy.load_image(mpragefile)
     sliceimg = nipy.load_image('slice_mprage_rigid.nii.gz')
 
+    # add slice line to mprage usign nipy
     t1andslc = mprage.get_data()
-    intensityval = numpy.percentile( t1andslc[t1andslc>0], 90)
+    intensityval  = numpy.percentile( t1andslc[t1andslc>0], 90)
     t1andslc_data = (intensityval * (sliceimg.get_data()>0) ) + t1andslc 
     t1andslc      = mprage.from_image(mprage,data=t1andslc_data)
     nipy.save_image(t1andslc,'anatAndSlice.nii.gz')
     updateimg('anatAndSlice.nii.gz','','anatAndSlice.pgm')
 
+    # write it out as a dicom
     make_dicom(t1andslc_data)
 
     subprocess.Popen(['afni','-com','SET_UNDERLAY anatAndSlice.nii.gz'])
@@ -237,11 +246,13 @@ betscale.set(.5)
 
 ## buttons 
 betgo  = tkinter.Button(bframe,text='0. re-strip',command=skullstrip)
+robexgo  = tkinter.Button(bframe,text='0. alt-robex',command=run_robex)
 warpgo = tkinter.Button(bframe,text='1. warp',command=warp)
 makego = tkinter.Button(bframe,text='2. make',command=saveandafni)
 
 betscale.pack(side="left")
 betgo.pack(side="top")
+robexgo.pack(side="top")
 warpgo.pack(side="top")
 makego.pack(side="top")
 
