@@ -27,7 +27,7 @@ initialdir = mrpath
 filebrowser='open'
 
 # things change if we are testing (local computer)
-if os.uname().nodename in ["reese"]:
+if os.uname().nodename in ["reese"]: #, "7TMacMini.local"]:
     mrpath="/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
     initialdir=mrpath
 
@@ -38,7 +38,7 @@ master.title('Subject Native Slice Orientation')
 
 ## make sure we have the mount
 if not os.path.exists(mrpath): 
- tkinter.messagebox.showerror("Error","MR is not mounted?! (%s)"%mrpath)
+ tkinter.messagebox.showerror("Error","MR is not mounted?! (%s)\nuse command+k in finder"%mrpath)
  sys.exit(1)
 
 
@@ -228,6 +228,7 @@ def make_dicom(niidata):
 
 ## go to new directory
 tempdir=tempfile.mkdtemp(dir=outputdirroot,prefix=subjid)
+print(tempdir)
 os.chdir(tempdir)
 #os.symlink(atlas, './')
 
@@ -274,4 +275,4 @@ tkinter.mainloop()
 ## remove tempdir
 #TODO: maybe keep? as subject name? want coeffs
 os.chdir(origdir)
-shutil.rmtree(tempdir)
+#shutil.rmtree(tempdir)
