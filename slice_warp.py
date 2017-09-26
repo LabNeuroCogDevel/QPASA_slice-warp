@@ -2,6 +2,8 @@
 import tkinter 
 from tkinter import filedialog, scrolledtext, WORD, messagebox
 
+
+# series nubmer, and name
 import tempfile, os, os.path
 import sys
 import subprocess
@@ -59,8 +61,9 @@ if re.match('.*\.nii(\.gz)?$',master.filename ) : nii = master.filename
 
 # get id from dicom
 if re.match('(^MR.*)|(.*IMA)$',master.filename ) :
-    selectedDicom = dicom.read_file(dcm)
-    subjid=selectedDicom.PatientName + '_' + selectedDicom.PatientID 
+    masterdcm=master.filename 
+    selectedDicom = dicom.read_file(masterdcm)
+    subjid="%s_%s"%(selectedDicom.PatientID,selectedDicom.PatientName)
 else:
     subjid='unknown'
 
@@ -211,6 +214,7 @@ def make_dicom(niidata):
    # (128, 118)          # (96, 118, 128)
    
    ndcm=len(alldcms)
+   newuid=dicom.UID.generate_uid()
    for i in range(ndcm):
      dcm = alldcms[i]
    
@@ -221,6 +225,20 @@ def make_dicom(niidata):
      d = dicom.read_file(dcm)
      d.pixel_array.flat = ndataford.flatten()
      d.PixelData = d.pixel_array.tostring()
+
+     # change settings so we can reimport
+     # --- chen's code:
+     #       SeriesDescription_ = ['BrainStrip_' info.SeriesDescription];
+     #       info.SeriesNumber       = info.SeriesNumber + 200;
+     #       info.SeriesDescription  = SeriesDescription_;
+     #       info.SeriesInstanceUID  =  uid;
+     # ---
+     d.SeriesNumber = d.SeriesNumber + 210
+     d.SeriesDescription = 'mprageAddSlice_' + d.SeriesDescription
+     d.SeriesInstanceUID = newuid
+     d.SequenceName      = 'mprageAddSlice_'  + d.SequenceName
+     d.ProtocolName      = 'mprageAddSlice_'  + d.ProtocolName
+
      d.save_as(outname)
 
 
@@ -247,7 +265,7 @@ betscale.set(.5)
 
 ## buttons 
 betgo  = tkinter.Button(bframe,text='0. re-strip',command=skullstrip)
-robexgo  = tkinter.Button(bframe,text='0. alt-robex',command=run_robex)
+robexgo= tkinter.Button(bframe,text='0. alt-robex',command=run_robex)
 warpgo = tkinter.Button(bframe,text='1. warp',command=warp)
 makego = tkinter.Button(bframe,text='2. make',command=saveandafni)
 
