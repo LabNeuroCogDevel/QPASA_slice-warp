@@ -13,6 +13,7 @@ import glob
 import re
 
 import nipy, numpy, dicom
+from make_dicom import *
 
 # where is this script (the slice atlas is probably also here)
 origdir=os.path.dirname(os.path.realpath(__file__))
@@ -39,19 +40,21 @@ master = tkinter.Tk()
 master.title('Subject Native Slice Orientation')
 
 ## make sure we have the mount
-if not os.path.exists(mrpath): 
+if not os.path.exists(mrpath) and len(sys.argv)>1 and sys.argv[1] != 'test': 
  tkinter.messagebox.showerror("Error","MR is not mounted?! (%s)\nuse command+k in finder"%mrpath)
  sys.exit(1)
 
 
 ## get dicom directory
 # code hangs here until user makes a choice
+master.update() # close the file dialog box on OS X
 master.filename = \
         tkinter.filedialog.askopenfilename(\
                       initialdir = initialdir,\
                       title = "Select a representative DICOM",\
 		      )
                       #filetypes = (("all files","*.*"),("Dicoms","MR*")))
+master.update() # close the file dialog box on OS X
 if not master.filename: sys.exit(1)
 
 dcmdir = os.path.dirname(master.filename)
@@ -66,7 +69,6 @@ if re.match('(^MR.*)|(.*IMA)$',master.filename ) :
     subjid="%s_%s"%(selectedDicom.PatientID,selectedDicom.PatientName)
 else:
     subjid='unknown'
-
 
 
 ## define area's used by functions
@@ -105,17 +107,20 @@ def shouldhave(thisfile):
     if not os.path.isfile(thisfile):
        logtxt("ERROR: expected file (%s/%s) does not exist!"%(os.getcwd(),thisfile),'error')
 
-def runcmd(cmd,logit=True):
-   if logit: 
-         logtxt("\n[%s %s]"%(datetime.datetime.now(),os.getcwd()),'info')
-         logtxt("%s"%cmd,'cmd')
+def logruncmd(cmd):
+   logtxt("\n[%s %s]"%(datetime.datetime.now(),os.getcwd()),'info')
+   logtxt("%s"%cmd,'cmd')
 
-   p = subprocess.Popen(cmd.split(' '),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+def logcmdoutput(p,logit):
    output,error = p.communicate()
-
    if logit: logtxt(output.decode(),'output')
    if error.decode():
        logtxt("ERROR: "+error.decode(),'error')
+
+def runcmd(cmd,logit=True):
+   if logit: logruncmd(cmd)
+   p = subprocess.Popen(cmd.split(' '),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+   logcmdoutput(p,logit)
 
 # copy nii or make form dicom (mprage1.nii.gz)
 def getInitialInput():
@@ -125,7 +130,8 @@ def getInitialInput():
     else:
         runcmd("3dcopy %s mprage1.nii"%nii)
 
-    updateimg('mprage1.nii')
+    resample()
+    updateimg('mprage1_res.nii')
     skullstrip()
 
 def change_img(pgmimg):
@@ -157,14 +163,31 @@ def change_img_from_menu(*args):
     pgmimg=selectedImg.get()
     change_img(pgmimg)
 
+# get original resolution
+# keep as string for passing back into resample
+def get_dxyz(img):
+     orig=subprocess.check_output(['3dinfo','-ad3',img])
+     return(orig.decode().replace('\t',' ').replace('\n',''))
+     #res=[ float(x) for x in orig.decode().split(' ')]
+     #return(res)
+
+def resample(*args):
+    orig=get_dxyz('mprage1.nii')
+    #min_d=min([ float(x) for x in orig.split(' ')])
+    if shouldresample.get(): # and min_d < 1:
+        runcmd("3dresample -overwrite -inset mprage1.nii -dxyz 2 2 2 -prefix mprage1_res.nii.gz")
+    else:
+        shouldresample.set(0)
+        runcmd("3dcopy -overwrite mprage1.nii mprage1_res.nii.gz")
+    shouldhave('mprage1_res.nii.gz')
 
 def skullstrip():
-    runcmd("bet mprage1.nii mprage_bet.nii.gz -f %.02f"%betscale.get())
+    runcmd("bet mprage1_res.nii.gz mprage_bet.nii.gz -f %.02f"%betscale.get())
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
 def run_robex():
-    runcmd("runROBEX.sh mprage1.nii mprage_bet.nii.gz")
+    runcmd("runROBEX.sh mprage1_res.nii.gz mprage_bet.nii.gz")
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
@@ -178,7 +201,7 @@ def warp():
     logtxt("[%s] warp finished!"%datetime.datetime.now(),tag='alert')
 
 def saveandafni():
-    mpragefile = 'mprage1.nii'
+    mpragefile = 'mprage1_res.nii'
     # maybe we are using compression:
     if not os.path.isfile(mpragefile): mpragefile=mpragefile+'.gz'
 
@@ -189,57 +212,38 @@ def saveandafni():
     t1andslc = mprage.get_data()
     intensityval  = numpy.percentile( t1andslc[t1andslc>0], 90)
     t1andslc_data = (intensityval * (sliceimg.get_data()>0) ) + t1andslc 
+
+    # save new image out
     t1andslc      = mprage.from_image(mprage,data=t1andslc_data)
-    nipy.save_image(t1andslc,'anatAndSlice.nii.gz')
-    updateimg('anatAndSlice.nii.gz','','anatAndSlice.pgm')
+    nipy.save_image(t1andslc,'anatAndSlice_res.nii.gz')
+    # update window
+    updateimg('anatAndSlice_res.nii.gz','','anatAndSlice.pgm')
 
-    # write it out as a dicom
-    make_dicom(t1andslc_data)
-
-    subprocess.Popen(['afni','-com','SET_UNDERLAY anatAndSlice.nii.gz'])
+    # resample back 
+    origdxyz=get_dxyz('mprage1.nii')
+    if( origdxyz != get_dxyz('anatAndSlice_res.nii.gz') ):
+      runcmd('3dresample -overwrite -inset anatAndSlice_res.nii.gz -dxyz %s -prefix anatAndSlice_unres.nii.gz'%origdxyz)
+    # start afni
+    subprocess.Popen(['afni','-com','SET_UNDERLAY anatAndSlice_unres.nii.gz'])
     subprocess.Popen([filebrowser, tempdir])
 
-    
-    
+    ### finally write out dicoms
+    # write it out as a dicom, using matlab
+    mlcmd="rewritedcm('%s','%s')"%(dcmdir,os.path.join(tempdir,'anatAndSlice_unres.nii.gz'))
+    mlfull=[ 'matlab','-nodisplay','-r',"try, addpath('%s');%s;catch e, disp(e), end, quit()"%(origdir,mlcmd) ]
+    cmdstr=' '.join(mlfull)
+    logruncmd(cmdstr)
+    logarea.config(state="normal")
 
-def make_dicom(niidata):
-   savedir = 'slice_warp_dcm'
-   if not os.path.exists(savedir): os.mkdir(savedir)
+    print(cmdstr)
+    # run matlab in an empty enviornment so we dont get ls colors
+    mlp = subprocess.Popen(mlfull,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env={'PATH': os.environ['PATH'], 'TERM':""})
+    logcmdoutput(mlp,True)
 
-   alldcms=glob.glob(dcmdir + '/*IMA' )
-   # niiimg = nipy.load_image(nii)
-   # niidata = niiimg.get_data()
-   
-   # d.pixel_array.shape # niidata.shape
-   # (128, 118)          # (96, 118, 128)
-   
-   ndcm=len(alldcms)
-   newuid=dicom.UID.generate_uid()
-   for i in range(ndcm):
-     dcm = alldcms[i]
-   
-     # transpose directions, flip horz and flip vert
-     ndataford = numpy.fliplr( numpy.flipud( niidata[(ndcm-1-i),:,:].transpose() ) )
-     outname   = savedir + '/' + os.path.basename(dcm) 
-   
-     d = dicom.read_file(dcm)
-     d.pixel_array.flat = ndataford.flatten()
-     d.PixelData = d.pixel_array.tostring()
-
-     # change settings so we can reimport
-     # --- chen's code:
-     #       SeriesDescription_ = ['BrainStrip_' info.SeriesDescription];
-     #       info.SeriesNumber       = info.SeriesNumber + 200;
-     #       info.SeriesDescription  = SeriesDescription_;
-     #       info.SeriesInstanceUID  =  uid;
-     # ---
-     d.SeriesNumber = d.SeriesNumber + 210
-     d.SeriesDescription = 'mprageAddSlice_' + d.SeriesDescription
-     d.SeriesInstanceUID = newuid
-     d.SequenceName      = 'mprageAddSlice_'  + d.SequenceName
-     d.ProtocolName      = 'mprageAddSlice_'  + d.ProtocolName
-
-     d.save_as(outname)
+    # using python
+    make_dicom(dcmdir, 'anatAndSlice_unres.nii.gz')
+    print('make_dicom("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
+    # so we can copy from it?
 
 
 ###################
@@ -269,11 +273,19 @@ robexgo= tkinter.Button(bframe,text='0. alt-robex',command=run_robex)
 warpgo = tkinter.Button(bframe,text='1. warp',command=warp)
 makego = tkinter.Button(bframe,text='2. make',command=saveandafni)
 
+# checkbox
+shouldresample = tkinter.IntVar()
+shouldresample.set(1)
+resampleCheck= tkinter.Checkbutton(master, text="2mm?", variable=shouldresample)
+resampleCheck.var = shouldresample 
+shouldresample.trace("w", resample)
+
 betscale.pack(side="left")
 betgo.pack(side="top")
 robexgo.pack(side="top")
 warpgo.pack(side="top")
 makego.pack(side="top")
+resampleCheck.pack(side="bottom")
 
 ## image menu and log
 avalImgMenu.pack()
