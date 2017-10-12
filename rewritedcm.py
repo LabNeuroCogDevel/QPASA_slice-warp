@@ -6,7 +6,7 @@ read in dicoms from a given directory
 rewrite over data with that from given nifti
 save new dicoms out in protoprefix+SeriesDescription directory
 """
-def make_dicom(dcmdir,niifile,protonumadd=210,protoprefix='pySlice_') :
+def rewritedcm(dcmdir,niifile,protonumadd=210,protoprefix='pySlice_') :
    newdata=nipy.load_image(niifile)
    niidata=newdata.get_data()
 
@@ -53,4 +53,4 @@ def make_dicom(dcmdir,niifile,protonumadd=210,protoprefix='pySlice_') :
 
 if __name__ == "__main__":
     if len(sys.argv) != 3: raise ValueError('need 2 arguements to %s'%sys.argv[0])
-    make_dicom(sys.argv[1],sys.argv[2])
+    rewritedcm(sys.argv[1],sys.argv[2])

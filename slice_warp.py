@@ -13,7 +13,7 @@ import glob
 import re
 
 import nipy, numpy, dicom
-from make_dicom import *
+from rewritedcm import *
 
 # where is this script (the slice atlas is probably also here)
 origdir=os.path.dirname(os.path.realpath(__file__))
@@ -241,8 +241,8 @@ def saveandafni():
     logcmdoutput(mlp,True)
 
     # using python
-    make_dicom(dcmdir, 'anatAndSlice_unres.nii.gz')
-    print('make_dicom("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
+    print('rewritedcm("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
+    rewritedcm(dcmdir, 'anatAndSlice_unres.nii.gz')
     # so we can copy from it?
 
 
