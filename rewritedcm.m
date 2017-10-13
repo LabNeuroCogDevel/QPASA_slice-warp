@@ -38,8 +38,9 @@ function rewritedcm(expfolder,niifile)
          sliceidx=nfiles-ll +1;
          strfile=files{sliceidx};
 
-         if mod(sliceidx,10)==0:
-            fprintf('slice %d, %s',sliceidx,strfile)
+         if( mod(sliceidx,10) == 0)
+            fprintf('slice %d, %s\n',sliceidx,strfile)
+         end
 
          info = dicominfo(strfile);
 
