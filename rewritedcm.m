@@ -34,11 +34,15 @@ function rewritedcm(expfolder,niifile)
     fprintf('have %d files in %s\n',nfiles,expfolder );
     for ll=1:nfiles
         % ;;DICOM read
-         strfile=files{ll};
-         %disp(strfile)
-         info = dicominfo(strfile);
-         % data = dicomread(info); % if we were just making a copy
          
+         sliceidx=nfiles-ll +1;
+         strfile=files{sliceidx};
+
+         if mod(sliceidx,10)==0:
+            fprintf('slice %d, %s',sliceidx,strfile)
+
+         info = dicominfo(strfile);
+
          % python
          %   ndataford = numpy.fliplr( numpy.flipud( niidata[(ndcm-1-i),:,:].transpose() ) )
          %data = int16(Y(:,:,ll));
@@ -47,7 +51,8 @@ function rewritedcm(expfolder,niifile)
 
          % readdicom(strfile) == 128x118, nfiles=96
          % Y = 96x118x128
-         sliceidx=nfiles-ll +1,
+
+         % data = dicomread(info); % if we were just making a copy
          slice=squeeze(Y(sliceidx,:,:));
          data = int16(  fliplr( flipud( slice' ))  );
 

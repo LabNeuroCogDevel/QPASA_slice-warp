@@ -10,8 +10,8 @@ set -e
 mkcannon() { echo $(cd $(dirname $1);pwd)/$(basename $1);}
 mkniiandimg(){
   pwd
-  dcm2niix .
-  slicer -a img.png $(ls -1tc *nii.gz|sed 1q)
+  dcm2niix -z y .
+  slicer -a img.png $(ls -1tc $(pwd)/*nii.gz|sed 1q)
   ls $(pwd)/img.png
 }
 
@@ -25,6 +25,8 @@ mlcmd="rewritedcm('$dcmdir','$niifile')"
 [ ! -r $dcmdir/img.png ] && (cd $dcmdir; mkniiandimg)
 
 if [ -z "$3" ]; then
+  unset CLICOLOR
+  unset LSCOLORS
   set -x
   matlab -nodisplay -r "try, addpath('$thisdir');$mlcmd;catch e, disp(e), end, quit()"
   set +x
