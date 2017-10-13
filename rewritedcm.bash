@@ -21,16 +21,22 @@ niifile=$(mkcannon $2)
 thisdir=$(cd $(dirname $0);pwd)
 mlcmd="rewritedcm('$dcmdir','$niifile')"
 
-(cd $dcmdir; mkniiandimg)
+# reference image
+[ ! -r $dcmdir/img.png ] && (cd $dcmdir; mkniiandimg)
 
 if [ -z "$3" ]; then
+  set -x
   matlab -nodisplay -r "try, addpath('$thisdir');$mlcmd;catch e, disp(e), end, quit()"
-  cd ml*/
+  set +x
+  cd $(dirname $niifile)/mlBrainStrip_*/
   mkniiandimg
 
 else
   cd $(dirname $niifile)
+
+  set -x
   $thisdir/rewritedcm.py "$dcmdir" "$niifile"
+  set +x
   cd pySlice*/
   mkniiandimg
 fi

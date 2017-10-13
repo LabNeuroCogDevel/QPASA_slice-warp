@@ -31,16 +31,26 @@ function rewritedcm(expfolder,niifile)
     uid = dicomuid;
     disp('DICOM conversion - ');
     disp(pwd);
+    fprintf('have %d files in %s\n',nfiles,expfolder );
     for ll=1:nfiles
         % ;;DICOM read
          strfile=files{ll};
-         disp(strfile)
+         %disp(strfile)
          info = dicominfo(strfile);
          % data = dicomread(info); % if we were just making a copy
          
+         % python
+         %   ndataford = numpy.fliplr( numpy.flipud( niidata[(ndcm-1-i),:,:].transpose() ) )
          %data = int16(Y(:,:,ll));
          %data = int16(fliplr(Y(:,:,ll)));
-         data = int16(flipud( fliplr( Y(:,:,ll) ))  ); % -90 
+         %data = int16(flipud( fliplr( Y(:,:,ll) ))  ); % -90
+
+         % readdicom(strfile) == 128x118, nfiles=96
+         % Y = 96x118x128
+         sliceidx=nfiles-ll +1,
+         slice=squeeze(Y(sliceidx,:,:));
+         data = int16(  fliplr( flipud( slice' ))  );
+
          % ;;SeriesDescription
          SeriesDescription_ = ['mlBrainStrip_' info.SeriesDescription];
          
