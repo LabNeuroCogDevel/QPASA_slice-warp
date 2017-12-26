@@ -5,6 +5,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 % TODO: params for outputdir, DCM pattern, +protocolnumber
 
    addpath('/opt/ni_tools/NlfTI/')
+   addpath('/opt/ni_tools/NIfTI/')
    
 % rewritedcm('/Volumes/Disk_C/Temp/20170929Luna/DICOM/MP2RAGE_SCOUT/','/Users/lncd/Desktop/slice_warps/david_20170929/anatAndSlice.nii.gz')
 
@@ -15,8 +16,8 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 
     % default save folder prefix to 8 digit date strin + _mlBrainStrip_
     % final directory will also get series description appended
-    if nargs != 3
-       savedirprefix = [datestr(now(),'YYYYMMDD') '_mlBrainStrip_' ]
+    if nargin ~= 3
+       savedirprefix = [datestr(now(),'yyyymmdd') '_mlBrainStrip_' ];
     end
 
     cd(expfolder)

@@ -106,6 +106,11 @@ avalImgMenu = tkinter.OptionMenu(master, selectedImg, [])
 
 
 # ----- functions -----
+def bname(path):
+    """basename that works for folders 
+    bname('/a/b/') == bname('/a/b') """
+    return([x for x in path.split(os.path.sep) if x ][-1])
+
 def logtxt(txt, tag='output'):
     logarea.mark_set(tkinter.INSERT, tkinter.END)
     logarea.config(state="normal")
@@ -322,16 +327,20 @@ def copyback():
     # we may want to change this to the python output at some time
     # (like when ML lisc expires)
     mldirpatt = datetime.datetime.now().strftime('%Y%m%d_mlBrainStrip_*/')
-    mldir = glob.glob(mldirpatt)
+    mldirpattfull = os.path.join(tempdir, mldirpatt)
+    mldir = glob.glob(mldirpattfull)
     if len(mldir) < 1:
-        print("NO matlab dir %s" % mldirpatt)
+        logtxt("did you make? new dicom dir DNE: %s" % mldirpattfull)
         return()
+    # we only want the first (and hopefuly only match)
     mldir = mldir[0]
-    copyname = os.path.join(copytodir, os.path.basename(mldir))
+    # we'll copy it to the DICOM dir
+    copyname = os.path.join(copytodir, bname(mldir))
     if os.path.isdir(copyname):
-        print("ALREADY HAVE %s" % copyname)
+        logtxt("already have copied directory %s" % copyname)
     else:
         copy_tree(mldir, copyname)
+        logtxt("copied warped slice to %s" % copyname,'info')
 
 
 ###################
