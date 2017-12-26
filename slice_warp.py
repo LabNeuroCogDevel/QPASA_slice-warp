@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-import tkinter 
-from tkinter import filedialog, scrolledtext, WORD, messagebox
+import tkinter
+from tkinter import WORD
 
 
 # series nubmer, and name
-import tempfile, os, os.path
+import tempfile
+import os
+import os.path
 import sys
 import subprocess
 import datetime
-import shutil
 import glob
 import re
 
-import nipy, numpy, dicom
-from rewritedcm import *
+import nipy
+import numpy
+import dicom
+# from rewritedcm import *
 
 # where is this script (the slice atlas is probably also here)
 origdir=os.path.dirname(os.path.realpath(__file__))
@@ -240,10 +243,10 @@ def saveandafni():
     mlp = subprocess.Popen(mlfull,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env={'PATH': os.environ['PATH'], 'TERM':""})
     logcmdoutput(mlp,True)
 
-    # using python
-    print('rewritedcm("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
-    rewritedcm(dcmdir, 'anatAndSlice_unres.nii.gz')
-    # so we can copy from it?
+    # # using python
+    # print('rewritedcm("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
+    # rewritedcm(dcmdir, 'anatAndSlice_unres.nii.gz')
+    # # so we can copy from it?
 
 
 ###################
