@@ -234,6 +234,14 @@ def skullstrip():
 
 
 def run_robex():
+    # this takes a while, so make sure we want to do it
+    prompt = tkinter.messagebox.askokcancel(
+               "runROBEX",
+               "This will take a while, are you sure?")
+    # return to gui if we dont didn't confirm
+    if not prompt:
+        return()
+    # otherwise, proceed
     runcmd("runROBEX.sh mprage1_res.nii.gz mprage_bet.nii.gz")
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
