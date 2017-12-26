@@ -1,4 +1,4 @@
-function rewritedcm(expfolder,niifile)
+function rewritedcm(expfolder,niifile,savedirprefix)
 % REWRITEDCM - input expfolder to read dicoms from, nifit data to rewrite
 %              saves new dicoms in subdirctory (mlBrainStrip_) of given nifti
 %              with series number +200
@@ -12,6 +12,12 @@ function rewritedcm(expfolder,niifile)
     %niidir=cd(cd(fileparts(niifile))); % try to be absolute
     niidir=fileparts(niifile); % relative is not so bad
     savein = [ niidir '/' ];   
+
+    % default save folder prefix to 8 digit date strin + _mlBrainStrip_
+    % final directory will also get series description appended
+    if nargs != 3
+       savedirprefix = [datestr(now(),'YYYYMMDD') '_mlBrainStrip_' ]
+    end
 
     cd(expfolder)
     % MP2RGAW 2nd TI image
@@ -58,7 +64,7 @@ function rewritedcm(expfolder,niifile)
          data = int16(  fliplr( flipud( slice' ))  );
 
          % ;;SeriesDescription
-         SeriesDescription_ = ['mlBrainStrip_' info.SeriesDescription];
+         SeriesDescription_ = [savedirprefix info.SeriesDescription];
          
          
          % ;;Series update

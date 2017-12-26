@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 import tkinter
+import tkinter.filedialog
+import tkinter.messagebox
+import tkinter.scrolledtext
 from tkinter import WORD
 
 
@@ -12,6 +15,7 @@ import subprocess
 import datetime
 import glob
 import re
+from distutils.dir_util import copy_tree
 
 import nipy
 import numpy
@@ -198,13 +202,15 @@ def change_img_from_menu(*args):
 def get_dxyz(img):
     orig = subprocess.check_output(['3dinfo', '-ad3', img])
     return(orig.decode().replace('\t', ' ').replace('\n', ''))
-    #res=[ float(x) for x in orig.decode().split(' ')]
+    # res=[ float(x) for x in orig.decode().split(' ')]
     # return(res)
 
 
 def resample(*args):
-    orig = get_dxyz('mprage1.nii')
-    #min_d=min([ float(x) for x in orig.split(' ')])
+    # what are our resample dimenstions?
+    # orig = get_dxyz('mprage1.nii')
+    # min_d=min([ float(x) for x in orig.split(' ')])
+    # -- instead always use 2mm
     if shouldresample.get():  # and min_d < 1:
         runcmd(
             "3dresample -overwrite -inset mprage1.nii -dxyz 2 2 2 -prefix mprage1_res.nii.gz")
@@ -305,8 +311,30 @@ def saveandafni():
     # # so we can copy from it?
 
 
-###################
+def copyback():
+    """copy newly created dicom folder back to original dicom folder location
+    """
+    # we'll create a new directory at the same level
+    # as the one we got dicoms from
+    # this is probably mrpath: '/Volumes/Disk_C/Temp/'
+    copytodir = os.path.dirname(dcmdir)
+    # YYYYMMDD_mlBrainStrip_SeriesDescrp is the default name from rewritedcm.m
+    # we may want to change this to the python output at some time
+    # (like when ML lisc expires)
+    mldirpatt = datetime.datetime.now().strftime('%Y%m%d_mlBrainStrip_*/')
+    mldir = glob.glob(mldirpatt)
+    if len(mldir) < 1:
+        print("NO matlab dir %s" % mldirpatt)
+        return()
+    mldir = mldir[0]
+    copyname = os.path.join(copytodir, os.path.basename(mldir))
+    if os.path.isdir(copyname):
+        print("ALREADY HAVE %s" % copyname)
+    else:
+        copy_tree(mldir, copyname)
 
+
+###################
 # ----- go to new directory -----
 tempdir = tempfile.mkdtemp(dir=outputdirroot, prefix=subjid)
 print(tempdir)
@@ -332,6 +360,7 @@ betgo = tkinter.Button(bframe, text='0. re-strip', command=skullstrip)
 robexgo = tkinter.Button(bframe, text='0. alt-robex', command=run_robex)
 warpgo = tkinter.Button(bframe, text='1. warp', command=warp)
 makego = tkinter.Button(bframe, text='2. make', command=saveandafni)
+copygo = tkinter.Button(bframe, text='3. copy back', command=copyback)
 
 # checkbox
 shouldresample = tkinter.IntVar()
@@ -346,6 +375,7 @@ betgo.pack(side="top")
 robexgo.pack(side="top")
 warpgo.pack(side="top")
 makego.pack(side="top")
+copygo.pack(side="top")
 resampleCheck.pack(side="bottom")
 
 # ----- image menu and log -----
