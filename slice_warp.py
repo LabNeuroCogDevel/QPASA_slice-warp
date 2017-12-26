@@ -215,7 +215,9 @@ def resample(*args):
 
 
 def skullstrip():
-    runcmd("bet mprage1_res.nii.gz mprage_bet.nii.gz -f %.02f" % betscale.get())
+    runcmd(
+        "bet mprage1_res.nii.gz mprage_bet.nii.gz -f %.02f" %
+        betscale.get())
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
@@ -227,8 +229,12 @@ def run_robex():
 
 
 def warp():
-    runcmd("flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline" % templatebrain)
-    runcmd("applyxfm4D %s mprage_bet.nii.gz slice_mprage_rigid.nii.gz direct_std2native_aff.mat -singlematrix" % atlas)
+    runcmd(
+        "flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline" %
+        templatebrain)
+    runcmd(
+        "applyxfm4D %s mprage_bet.nii.gz slice_mprage_rigid.nii.gz direct_std2native_aff.mat -singlematrix" %
+        atlas)
     runcmd("slicer slice_mprage_rigid.nii.gz -a slice_only.pgm", logit=False)
     updateimg('slice_mprage_rigid.nii.gz', '', 'slice_only.pgm')
     updateimg('mprage_bet.nii.gz', 'slice_mprage_rigid.nii.gz', 'betRed.pgm')
@@ -259,7 +265,9 @@ def saveandafni():
     # resample back
     origdxyz = get_dxyz('mprage1.nii')
     if(origdxyz != get_dxyz('anatAndSlice_res.nii.gz')):
-        runcmd('3dresample -overwrite -inset anatAndSlice_res.nii.gz -dxyz %s -prefix anatAndSlice_unres.nii.gz' % origdxyz)
+        runcmd(
+            '3dresample -overwrite -inset anatAndSlice_res.nii.gz -dxyz %s -prefix anatAndSlice_unres.nii.gz' %
+            origdxyz)
     # start afni
     subprocess.Popen(
         ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz'])
@@ -269,16 +277,26 @@ def saveandafni():
     # write it out as a dicom, using matlab
     mlcmd = "rewritedcm('%s','%s')" % (
         dcmdir, os.path.join(tempdir, 'anatAndSlice_unres.nii.gz'))
-    mlfull = ['matlab', '-nodisplay', '-r',
-              "try, addpath('%s');%s;catch e, disp(e), end, quit()" % (origdir, mlcmd)]
+    mlfull = [
+        'matlab',
+        '-nodisplay',
+        '-r',
+        "try, addpath('%s');%s;catch e, disp(e), end, quit()" %
+        (origdir,
+         mlcmd)]
     cmdstr = ' '.join(mlfull)
     logruncmd(cmdstr)
     logarea.config(state="normal")
 
     print(cmdstr)
     # run matlab in an empty enviornment so we dont get ls colors
-    mlp = subprocess.Popen(mlfull, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={
-                           'PATH': os.environ['PATH'], 'TERM': ""})
+    mlp = subprocess.Popen(
+        mlfull,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env={
+            'PATH': os.environ['PATH'],
+            'TERM': ""})
     logcmdoutput(mlp, True)
 
     # # using python
