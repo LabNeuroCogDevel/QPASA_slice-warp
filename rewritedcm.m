@@ -65,7 +65,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          data = int16(  fliplr( flipud( slice' ))  );
 
          % ;;SeriesDescription
-         SeriesDescription_ = [ savedirprefix '_mlBrainStrip_' info.SeriesDescription]; 
+         SeriesDescription_ = [ savedirprefix info.SeriesDescription]; 
          
          % ;;Series update
          info.SeriesNumber       = info.SeriesNumber + 200;
