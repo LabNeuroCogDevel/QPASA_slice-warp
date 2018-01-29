@@ -1,6 +1,6 @@
 function rewritedcm(expfolder,niifile)
 % REWRITEDCM - input expfolder to read dicoms from, nifit data to rewrite
-%              saves new dicoms in subdirctory (mlBrainStrip_) of given nifti
+%              saves new dicoms in subdirctory (YYYYMMDD_mlBrainStrip_) of given nifti
 %              with series number +200
 % TODO: params for outputdir, DCM pattern, +protocolnumber
 
@@ -58,7 +58,8 @@ function rewritedcm(expfolder,niifile)
          data = int16(  fliplr( flipud( slice' ))  );
 
          % ;;SeriesDescription
-         SeriesDescription_ = ['mlBrainStrip_' info.SeriesDescription];
+         ymd=datestr(now,'YYYYMMDD')
+         SeriesDescription_ = [ ymd '_mlBrainStrip_' info.SeriesDescription];
          
          
          % ;;Series update
