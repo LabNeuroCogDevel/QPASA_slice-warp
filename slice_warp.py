@@ -32,7 +32,7 @@ if not os.path.exists(outputdirroot):
 # ----- settings -----
 atlas = "%s/slice_atlas.nii.gz" % origdir
 templatebrain = "/opt/ni_tools/standard/mni_icbm152_nlin_asym_09c/mni_icbm152_t1_tal_nlin_asym_09c_brain.nii"
-mrpath = '/Volumes/Disk_C/Temp/'  # mount point for scanner
+mrpath = '/Volumes/HostDicom/'  # mount point for scanner
 initialdir = mrpath
 
 filebrowser = 'open'
