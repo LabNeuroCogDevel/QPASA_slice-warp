@@ -20,8 +20,12 @@ AFNIDIR="/opt/ni_tools/afni"
 PATH="$PATH:$AFNIDIR"
 # mount data  if we dont have it
 #[ ! -d /Volumes/Disk_C/Temp/ ] && echo "mounting temp!" && osascript -e "try" -e "mount volume \"smb://meduser@192.168.2.1/Disk_C\"" -e "end try" 
-if [ ! -d /Volumes/HostDicom/ ! mount | grep HostDicom -q  ]; then
-   ret=$(osascript -e 'tell application (path to frontmost application as text) to display dialog "MR computer is not accessible! meduser@10.48.88.119/HostDicom with finder (go->connect to server)" buttons {"Continue","Quit"} with icon caution')
+vialinux=""
+viascanner=""
+[ -d /Volumes/HostDicom/ ] && mount | grep HostDicom -q  && vialinux=yes
+[ -d /Volumes/Disk_C/ ] && mount | grep Disk_C -q  && viascanner=yes
+if [ -n "$viascanner$vialinux" ]; then
+   ret=$(osascript -e 'tell application (path to frontmost application as text) to display dialog "MR computer is not accessible! meduser@10.48.88.119/HostDicom or .../Disck_C with finder (go->connect to server)" buttons {"Continue","Quit"} with icon caution')
 
    [[ $ret =~ Quit ]] && exit 1
 fi
