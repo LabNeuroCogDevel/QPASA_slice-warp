@@ -24,7 +24,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     % default save folder prefix to 8 digit date strin + _mlBrainStrip_
     % final directory will also get series description appended
     if nargin ~= 3
-       savedirprefix = [datestr(now(),'yyyymmdd') '_mlBrainStrip_' ];
+       savedirprefix = [datestr(now(),'yyyymmdd_HHMMSS') '_mlBrainStrip_' ];
     end
 
     cd(expfolder)

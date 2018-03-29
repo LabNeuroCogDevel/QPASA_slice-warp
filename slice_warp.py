@@ -334,7 +334,9 @@ def copyback():
     # YYYYMMDD_mlBrainStrip_SeriesDescrp is the default name from rewritedcm.m
     # we may want to change this to the python output at some time
     # (like when ML lisc expires)
-    mldirpatt = datetime.datetime.now().strftime('%Y%m%d_mlBrainStrip_*/')
+    mldirpatt = datetime.datetime.now().\
+        strftime('%Y%m%d_%H%M%S_mlBrainStrip_*/')
+
     mldirpattfull = os.path.join(tempdir, mldirpatt)
     mldir = glob.glob(mldirpattfull)
     if len(mldir) < 1:
@@ -348,7 +350,7 @@ def copyback():
         logtxt("already have copied directory %s" % copyname)
     else:
         copy_tree(mldir, copyname)
-        logtxt("copied warped slice to %s" % copyname,'info')
+        logtxt("copied warped slice to %s" % copyname, 'info')
 
 
 ###################
