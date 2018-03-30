@@ -49,6 +49,12 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     
     % how were images aquired? how do we put our LPI nifti back to dcm
     firstinfo = dicominfo(files{1});
+
+    % we need to know the way slices were collected
+    if ~isfield(firstinfo,'Private_0051_100e')
+       fprintf('BAD DATA: No Tra/Axl info (dcm tag 0051,100e)!\n')
+    end
+
     acqdir = firstinfo.Private_0051_100e; % 'Tra' vs 'Axl'
     acqmat = [firstinfo.Rows, firstinfo.Columns];
     
