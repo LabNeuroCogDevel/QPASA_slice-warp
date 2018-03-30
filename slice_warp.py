@@ -335,19 +335,25 @@ def copyback():
     # we may want to change this to the python output at some time
     # (like when ML lisc expires)
     mldirpatt = datetime.datetime.now().\
-        strftime('%Y%m%d_%H%M%S_mlBrainStrip_*/')
+        strftime('%Y%m%d_*_mlBrainStrip_*/')
+    # actual name is with hhmmss -- but that was some time ago
+    # strftime('%Y%m%d_%H%M%S_mlBrainStrip_*/')
 
     mldirpattfull = os.path.join(tempdir, mldirpatt)
     mldir = glob.glob(mldirpattfull)
     if len(mldir) < 1:
-        logtxt("did you make? new dicom dir DNE: %s" % mldirpattfull)
+        logtxt("did you make? new dicom dir DNE: %s" % mldirpattfull, 'error')
         return()
-    # we only want the first (and hopefuly only match)
-    mldir = mldir[0]
+    if len(mldir) > 1:
+        logtxt("have more than 1 %s!" % mldirpattfull, 'alert')
+        return()
+    # we only want the last (and hopefuly only match)
+    mldir = mldir[-1]
+
     # we'll copy it to the DICOM dir
     copyname = os.path.join(copytodir, bname(mldir))
     if os.path.isdir(copyname):
-        logtxt("already have copied directory %s" % copyname)
+        logtxt("already have copied directory %s" % copyname, 'alert')
     else:
         copy_tree(mldir, copyname)
         logtxt("copied warped slice to %s" % copyname, 'info')
