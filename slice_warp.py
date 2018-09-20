@@ -19,7 +19,7 @@ from distutils.dir_util import copy_tree
 
 import nipy
 import numpy
-import dicom
+import pydicom
 # from rewritedcm import *
 
 # where is this script (the slice atlas is probably also here)
@@ -76,7 +76,7 @@ if re.match('.*\.nii(\.gz)?$', master.filename):
 # get id from dicom
 if re.match('(^MR.*)|(.*IMA)$', master.filename):
     masterdcm = master.filename
-    selectedDicom = dicom.read_file(masterdcm)
+    selectedDicom = pydicom.read_file(masterdcm)
     subjid = "%s_%s" % (selectedDicom.PatientID, selectedDicom.PatientName)
 else:
     subjid = 'unknown'

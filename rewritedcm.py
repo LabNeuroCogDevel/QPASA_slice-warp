@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import dicom, glob, subprocess, numpy, nipy, sys, os
+import glob, subprocess, numpy, nipy, sys, os
+import dicom
 
 """
 read in dicoms from a given directory
