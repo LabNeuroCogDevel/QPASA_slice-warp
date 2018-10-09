@@ -15,6 +15,7 @@ The goal is to
 3. make new dicoms with the annotation avaiable to the scanner
 
 We can guide the GUI to do this:
+![all](img/9_all.png?raw=True)
 
 ### Open
 When opening `slice_warp.py`, you are prompted for an example anatomical dicom. 
