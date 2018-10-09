@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import dicom
 import glob
-import subprocess
 import numpy
 import nipy
 import sys
 import os
+# see pydicom
+# https://pydicom.github.io/pydicom/stable/auto_examples/input_output/plot_write_dicom.html
+
 
 """
 read in dicoms from a given directory
@@ -53,7 +55,7 @@ def rewritedcm(dcmdir, niifile, protonumadd=210, protoprefix='pySlice_'):
         d.ProtocolName = protoprefix + d.ProtocolName
 
         # save directroy sould include seriesdescription
-        #savedir = 'slice_warp_dcm'
+        # savedir = 'slice_warp_dcm'
         savedir = d.SeriesDescription
         if not os.path.exists(savedir):
             os.mkdir(savedir)

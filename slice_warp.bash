@@ -24,7 +24,7 @@ vialinux=""
 viascanner=""
 [ -d /Volumes/HostDicom/ ] && mount | grep HostDicom -q  && vialinux=yes
 [ -d /Volumes/Disk_C/ ] && mount | grep Disk_C -q  && viascanner=yes
-if [ -n "$viascanner$vialinux" ]; then
+if [ -z "$viascanner$vialinux" ]; then
    ret=$(osascript -e 'tell application (path to frontmost application as text) to display dialog "MR computer is not accessible! meduser@10.48.88.119/HostDicom or .../Disck_C with finder (go->connect to server)" buttons {"Continue","Quit"} with icon caution')
 
    [[ $ret =~ Quit ]] && exit 1
