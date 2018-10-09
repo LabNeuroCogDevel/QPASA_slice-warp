@@ -4,7 +4,10 @@ python GUI to guide through brain extraction (skull stripping) and linear warpin
 # Depends
 
 * python3: nipy, pydicom, numpy
+* fsl (skullstrip, flirt)
+* afni (for viewing final nifti)
 * matlab (for rewriting nifti to dicom - python implemetation not accepted by siemens scanner?)
+* optionally [ROBEX](https://www.nitrc.org/projects/robex) (slow but accurate skull stripping)
 * scanner exported samba share mounted to exchange dicom directories
 * a way to launch python scripts (windows, see anaconda; osx, consider automator running homebrew python)
 
