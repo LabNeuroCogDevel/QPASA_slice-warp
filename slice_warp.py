@@ -324,7 +324,7 @@ def saveandafni():
     # # so we can copy from it?
 
 
-def runbrainimgageshare():
+def brainimgageshare():
     # nii or nii.gz
     orig_mprage = os.path.join(tempdir, "mprage1.nii.gz")
     if not os.path.isfile(orig_mprage):
@@ -398,7 +398,7 @@ robexgo = tkinter.Button(bframe, text='0. alt-robex', command=run_robex)
 warpgo = tkinter.Button(bframe, text='1. warp', command=warp)
 makego = tkinter.Button(bframe, text='2. make', command=saveandafni)
 copygo = tkinter.Button(bframe, text='3. copy back', command=copyback)
-sharego = tkinter.Button(bframe, text='4. share jpg', command=runbrainimgageshare)
+sharego = tkinter.Button(bframe, text='4. watermark', command=brainimgageshare)
 
 # checkbox
 shouldresample = tkinter.IntVar()
