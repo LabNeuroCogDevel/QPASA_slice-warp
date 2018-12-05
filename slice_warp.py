@@ -39,7 +39,7 @@ filebrowser = 'open'
 
 # things change if we are testing (local computer)
 if os.uname().nodename in ["reese"]:  # , "7TMacMini.local"]:
-    mrpath = "/Volumes/Phillips/Raw/MRprojects/mMRDA-dev/2015.09.18-08.35.03/B0070/Sagittal_MPRAGE_ADNI_256x240.29/"
+    mrpath = os.path.join(os.path.dirname(__file__), "7t_example_ima")
     initialdir = mrpath
 
 
@@ -324,6 +324,18 @@ def saveandafni():
     # # so we can copy from it?
 
 
+def runbrainimgageshare():
+    # nii or nii.gz
+    orig_mprage = os.path.join(tempdir, "mprage1.nii.gz")
+    if not os.path.isfile(orig_mprage):
+        orig_mprage = os.path.join(tempdir, "mprage1.nii")
+
+    cmd = ["python3", "-m", "brainimageshare", orig_mprage]
+    logruncmd(" ".join(cmd))
+    # os.spawnl(os.P_NOWAIT, *cmd)
+    subprocess.Popen(cmd)
+
+
 def copyback():
     """copy newly created dicom folder back to original dicom folder location
     """
@@ -386,6 +398,7 @@ robexgo = tkinter.Button(bframe, text='0. alt-robex', command=run_robex)
 warpgo = tkinter.Button(bframe, text='1. warp', command=warp)
 makego = tkinter.Button(bframe, text='2. make', command=saveandafni)
 copygo = tkinter.Button(bframe, text='3. copy back', command=copyback)
+sharego = tkinter.Button(bframe, text='4. share jpg', command=runbrainimgageshare)
 
 # checkbox
 shouldresample = tkinter.IntVar()
@@ -401,6 +414,7 @@ robexgo.pack(side="top")
 warpgo.pack(side="top")
 makego.pack(side="top")
 copygo.pack(side="top")
+sharego.pack(side="top")
 resampleCheck.pack(side="bottom")
 
 # ----- image menu and log -----
