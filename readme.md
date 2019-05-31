@@ -1,5 +1,7 @@
 # Slice Warp GUI
-python GUI to guide through brain extraction (skull stripping) and linear warping an atlas to native space. We also make an attempt to put the atlas into dcms to import on the scanner.
+`Slice Warp GUI` is a graphical tool intended to enable near identical slice placement across individuals despite differing morphology. This is accomplished by walking through coregistation of an outlined oblique slice (standard MNI space) to subject space in real time and uploading the subject specific image as a placement guide to the scan computer. 
+
+It is written in python/tk and guides the user through brain extraction (skull stripping) and linear warping an atlas to native space both via FSL tools. Currently matlab is called to put the subject atlas into dcms to import back to the scanner for guided slice placement. AFNI's gui is used for interactively exploring the warp.
 
 # Depends
 
