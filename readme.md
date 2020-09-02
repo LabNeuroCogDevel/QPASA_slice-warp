@@ -1,11 +1,12 @@
-# Slice Warp GUI
-`Slice Warp GUI` is a graphical tool intended to enable near identical slice placement across individuals despite differing morphology. This is accomplished by walking through coregistation of an outlined oblique slice (standard MNI space) to subject space in real time and uploading the subject specific image as a placement guide to the scan computer. 
+# Quantitative Partial Acquisition Slice Alignment
+QPASA is a graphical tool allowing near identical slice placement across individuals despite differing morphology.
+The tool walks through (1) coregistation of an outlined oblique slice (in standard MNI space) to subject space in real time and (2) uploading the subject specific image to the scan computer to guide slice placement.
 
-It is written in python/tk and guides the user through brain extraction (skull stripping) and linear warping an atlas to native space both via FSL tools. Currently matlab is called to put the subject atlas into dcms to import back to the scanner for guided slice placement. AFNI's gui is used for interactively exploring the warp.
+It is written in python/tk and guides the user through brain extraction (skull stripping) and linear warping an atlas to native space both via FSL tools. A Matlab script is used to write the generated subject atlas as dicom files that can be imported back to the scanner for guided slice placement. AFNI's gui is used for interactively exploring the slice warpped from standard to subject space.
 
 # Depends
 
-* python3: nipy, pydicom, numpy
+* python3: nipy, pydicom, numpy, nibabel
 * fsl (skullstrip, flirt)
 * afni (for viewing final nifti)
 * matlab (for rewriting nifti to dicom - python implemetation not accepted by siemens scanner?)
