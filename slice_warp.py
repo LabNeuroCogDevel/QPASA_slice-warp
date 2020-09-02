@@ -20,6 +20,8 @@ from distutils.dir_util import copy_tree
 import nipy
 import numpy
 import pydicom
+
+import inhomfft
 # from rewritedcm import *
 
 # where is this script (the slice atlas is probably also here)
@@ -225,10 +227,18 @@ def resample(*args):
     shouldhave('mprage1_res.nii.gz')
 
 
-def skullstrip():
+def skullstrip_bias(inname="mprage1_res.nii.gz", outname="mprage1_res_inhomcor.nii.gz"):
+    """ skullstrip with inhomo fft fixed input"""
+    if not os.path.exists(outname):
+        logtxt("inhomfft %s %s" % (inname, outname), tag='cmd')
+        inhomfft.rewrite(inname, outname)
+    skullstrip(outname)
+
+
+def skullstrip(fname="mprage1_res.nii.gz"):
     runcmd(
-        "bet mprage1_res.nii.gz mprage_bet.nii.gz -f %.02f" %
-        betscale.get())
+        "bet %s mprage_bet.nii.gz -f %.02f" %
+        (fname, betscale.get()))
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
@@ -386,6 +396,7 @@ selectedImg.trace("w", change_img_from_menu)
 
 # ----- frames -----
 bframe = tkinter.Frame(master)
+stripframe = tkinter.Frame(bframe)
 bframe.pack(side="left")
 
 # skull strip (brain extract - bet)  setting
@@ -393,8 +404,11 @@ betscale = tkinter.Scale(bframe, from_=1, to=0, resolution=.05)
 betscale.set(.5)
 
 # ----- buttons -----
-betgo = tkinter.Button(bframe, text='0. re-strip', command=skullstrip)
-robexgo = tkinter.Button(bframe, text='0. alt-robex', command=run_robex)
+betgo = tkinter.Button(stripframe, text='re-strip', command=skullstrip)
+biasgo = tkinter.Button(stripframe, text='inhom+re-strip',
+                        command=skullstrip_bias)
+robexgo = tkinter.Button(stripframe, text='robex', command=run_robex)
+
 warpgo = tkinter.Button(bframe, text='1. warp', command=warp)
 makego = tkinter.Button(bframe, text='2. make', command=saveandafni)
 copygo = tkinter.Button(bframe, text='3. copy back', command=copyback)
@@ -409,8 +423,13 @@ resampleCheck.var = shouldresample
 shouldresample.trace("w", resample)
 
 betscale.pack(side="left")
-betgo.pack(side="top")
-robexgo.pack(side="top")
+
+stripframe.pack(side="top")
+tkinter.Label(stripframe, text="0.").pack(side="left")
+betgo.pack(side="left")
+biasgo.pack(side="left")
+robexgo.pack(side="left")
+
 warpgo.pack(side="top")
 makego.pack(side="top")
 copygo.pack(side="top")
