@@ -15,7 +15,6 @@ import subprocess
 import datetime
 import glob
 import re
-import shutil
 from distutils.dir_util import copy_tree
 
 import nipy
@@ -25,7 +24,10 @@ import pydicom
 import inhomfft
 # from rewritedcm import *
 # if we didn't want to use afni
-from ratthres import get_3dmax #, zero_thres, resave_nib
+import ratthres
+
+# FLOAT32 vs FLOAT64? dont care
+os.environ['AFNI_NIFTI_TYPE_WARN'] = 'NO'
 
 # where is this script (the slice atlas is probably also here)
 origdir = os.path.dirname(os.path.realpath(__file__))
@@ -44,7 +46,7 @@ filebrowser = 'open'
 
 # things change if we are testing (local computer)
 if os.uname().nodename in ["reese"]:  # , "7TMacMini.local"]:
-    mrpath = os.path.join(os.path.dirname(__file__), "7t_example_ima")
+    mrpath = os.path.join(os.path.dirname(__file__), "example/")
     initialdir = mrpath
 
 
@@ -120,6 +122,7 @@ def bname(path):
     """
     return([x for x in path.split(os.path.sep) if x ][-1])
 
+
 def logtxt(txt, tag='output'):
     logarea.mark_set(tkinter.INSERT, tkinter.END)
     logarea.config(state="normal")
@@ -155,8 +158,11 @@ def runcmd(cmd, logit=True):
         cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     logcmdoutput(p, logit)
 
-# copy nii or make form dicom (mprage1.nii.gz)
+## -- copy nii or make form dicom (mprage1.nii.gz)
 
+def backup():
+    """ create a copy of initial that we can return to if bias or thres is wonky """
+    runcmd('3dcopy mprage1_res.nii.gz mprage1_res_backup.nii.gz')
 
 def getInitialInput():
     # dcm2niix will put the echo number if we ask for it or not
@@ -166,7 +172,8 @@ def getInitialInput():
         runcmd("3dcopy %s mprage1.nii" % nii)
 
     resample()
-    updateimg('mprage1_res.nii')
+    updateimg('mprage1_res.nii.gz')
+    backup()
     skullstrip()
 
 
@@ -231,25 +238,47 @@ def resample(*args):
     else:
         shouldresample.set(0)
         runcmd("3dcopy -overwrite mprage1.nii mprage1_res.nii.gz")
+
     shouldhave('mprage1_res.nii.gz')
 
-def apply_threshold(inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
+
+def apply_threshold(inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz", backup=True):
     """ get ratio of max slider value and remove from image"""
-    # TODO: should this happen after fft?!
     if inname == outname:
         # prethres = "mprage1_res_prethres.nii.gz"
-        prethres = re.sub('.nii.gz$','_prethres.nii.gz', inname)
-        if not os.path.exists(prethres):
+        prethres = re.sub('.nii.gz$', '_prethres.nii.gz', inname)
+        if not os.path.exists(prethres) or not backup:
             runcmd("3dcopy -overwrite %s %s" % (inname, prethres))
         inname = prethres
 
-    rat = ratthres_slider.get()
-    maxval = get_3dmax(inname)
-    cmd = '3dcalc -overwrite -a %s -expr a*step(%s*%.02f-a) -prefix %s' %\
-          (inname, maxval, rat, outname)
+    sliderval = thres_slider.get()
+    # maxval = ratthres.get_3dmax(inname)
+    p80 = ratthres.get_3d80p(inname)
+    cmd = '3dcalc -overwrite -a %s -expr a*step(%s/%.02f-a) -prefix %s' %\
+          (inname, p80, sliderval, outname)
     runcmd(cmd)
-    #logtxt("threshold %s %s @ %.2f*max" % (inname, outname, rat), tag='cmd')
-    #resave_nib(inname, outname, lambda d: zero_thres(d, rat))
+    # logtxt("threshold %s %s @ %.2f*max" % (inname, outname, rat), tag='cmd')
+    # resave_nib(inname, outname, lambda d: zero_thres(d, rat))
+    updateimg(outname)
+
+
+def reset_initial(inname="mprage1_res_backup.nii.gz", outname="mprage1_res.nii.gz"):
+    """copy old backup to starting"""
+    runcmd('3dcopy -overwrite %s %s' % (inname, outname))
+
+    prethres = "mprage1_res_prethres.nii.gz"
+    if os.path.exists(prethres):
+        runcmd('rm %s' % prethres)
+
+    updateimg(outname)
+
+
+def bias_correct(inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
+    """run fft/fftshift/ifft to correct bias in 7T grappa
+    N.B. defaults to rewritting input (mprage1_res.nii.gz)"""
+    logtxt("inhomfft %s %s" % (inname, outname), tag='cmd')
+    inhomfft.rewrite(inname, outname)
+    runcmd('3dcopy %s biascor.nii.gz' % outname)
     updateimg(outname)
 
 
@@ -325,7 +354,12 @@ def saveandafni():
             origdxyz)
     # start afni
     subprocess.Popen(
-        ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz'])
+        ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz',
+            '-com', 'OPEN_WINDOW axialimage mont=3x3:5',
+            '-com', 'OPEN_WINDOW sagittalimage mont=3x3:5',
+            '-com', 'SET_OVERLAY slice_mprage_rigid.nii.gz',
+            '-com', 'SET_XHAIRS SINGLE',
+            '-com', 'SET_PBAR_SIGN +'])
     subprocess.Popen([filebrowser, tempdir])
 
     # ----- finally write out dicoms -----
@@ -423,22 +457,29 @@ selectedImg.trace("w", change_img_from_menu)
 # ----- frames -----
 bframe = tkinter.Frame(master)
 stripframe = tkinter.Frame(bframe)
+scaleframe = tkinter.Frame(bframe)
+scaleframe.pack(side="left")
 bframe.pack(side="left")
 
+# --- sliders ---
 # skull strip (brain extract - bet)  setting
-betscale = tkinter.Scale(bframe, from_=1, to=0, resolution=.05)
+betscale = tkinter.Scale(scaleframe, from_=1, to=0, resolution=.05)
 betscale.set(.5)
 
 # upper value threshold percent
-ratthres_slider = tkinter.Scale(bframe, from_=1, to=0, resolution=.05)
-ratthres_slider.set(1)
+thres_slider = tkinter.Scale(scaleframe, from_=.1, to=2, resolution=.05)
+thres_slider.set(.5)
 
 # ----- buttons -----
+redogo = tkinter.Button(stripframe, text='start over',
+                        command=reset_initial)
+biasgo = tkinter.Button(stripframe, text='inhom bias',
+                        command=bias_correct)
 thresgo = tkinter.Button(stripframe, text='apply thres',
                         command=apply_threshold)
 betgo = tkinter.Button(stripframe, text='re-strip', command=skullstrip)
-biasgo = tkinter.Button(stripframe, text='inhom+re-strip',
-                        command=skullstrip_bias)
+#biasgo = tkinter.Button(stripframe, text='inhom+re-strip',
+#                        command=skullstrip_bias)
 robexgo = tkinter.Button(stripframe, text='robex', command=run_robex)
 
 warpgo = tkinter.Button(bframe, text='1. warp', command=warp)
@@ -454,14 +495,16 @@ resampleCheck = tkinter.Checkbutton(
 resampleCheck.var = shouldresample
 shouldresample.trace("w", resample)
 
+tkinter.Label(scaleframe, text="skull  thres").pack(side="top")
 betscale.pack(side="left")
-ratthres_slider.pack(side="left")
+thres_slider.pack(side="right")
 
 stripframe.pack(side="top")
+redogo.pack(side="top")
+biasgo.pack(side="top")
 thresgo.pack(side="top")
 tkinter.Label(stripframe, text="0.").pack(side="left")
 betgo.pack(side="left")
-biasgo.pack(side="left")
 robexgo.pack(side="left")
 
 warpgo.pack(side="top")
