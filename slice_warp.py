@@ -15,6 +15,7 @@ import subprocess
 import datetime
 import glob
 import re
+import shutil
 from distutils.dir_util import copy_tree
 
 import nipy
@@ -23,6 +24,8 @@ import pydicom
 
 import inhomfft
 # from rewritedcm import *
+# if we didn't want to use afni
+from ratthres import get_3dmax #, zero_thres, resave_nib
 
 # where is this script (the slice atlas is probably also here)
 origdir = os.path.dirname(os.path.realpath(__file__))
@@ -110,7 +113,11 @@ avalImgMenu = tkinter.OptionMenu(master, selectedImg, [])
 # ----- functions -----
 def bname(path):
     """basename that works for folders 
-    bname('/a/b/') == bname('/a/b') """
+    >>> bname('/a/b/') 
+    'b'
+    >>> bname('/a/b') 
+    'b'
+    """
     return([x for x in path.split(os.path.sep) if x ][-1])
 
 def logtxt(txt, tag='output'):
@@ -225,6 +232,25 @@ def resample(*args):
         shouldresample.set(0)
         runcmd("3dcopy -overwrite mprage1.nii mprage1_res.nii.gz")
     shouldhave('mprage1_res.nii.gz')
+
+def apply_threshold(inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
+    """ get ratio of max slider value and remove from image"""
+    # TODO: should this happen after fft?!
+    if inname == outname:
+        # prethres = "mprage1_res_prethres.nii.gz"
+        prethres = re.sub('.nii.gz$','_prethres.nii.gz', inname)
+        if not os.path.exists(prethres):
+            runcmd("3dcopy -overwrite %s %s" % (inname, prethres))
+        inname = prethres
+
+    rat = ratthres_slider.get()
+    maxval = get_3dmax(inname)
+    cmd = '3dcalc -overwrite -a %s -expr a*step(%s*%.02f-a) -prefix %s' %\
+          (inname, maxval, rat, outname)
+    runcmd(cmd)
+    #logtxt("threshold %s %s @ %.2f*max" % (inname, outname, rat), tag='cmd')
+    #resave_nib(inname, outname, lambda d: zero_thres(d, rat))
+    updateimg(outname)
 
 
 def skullstrip_bias(inname="mprage1_res.nii.gz", outname="mprage1_res_inhomcor.nii.gz"):
@@ -403,7 +429,13 @@ bframe.pack(side="left")
 betscale = tkinter.Scale(bframe, from_=1, to=0, resolution=.05)
 betscale.set(.5)
 
+# upper value threshold percent
+ratthres_slider = tkinter.Scale(bframe, from_=1, to=0, resolution=.05)
+ratthres_slider.set(1)
+
 # ----- buttons -----
+thresgo = tkinter.Button(stripframe, text='apply thres',
+                        command=apply_threshold)
 betgo = tkinter.Button(stripframe, text='re-strip', command=skullstrip)
 biasgo = tkinter.Button(stripframe, text='inhom+re-strip',
                         command=skullstrip_bias)
@@ -423,8 +455,10 @@ resampleCheck.var = shouldresample
 shouldresample.trace("w", resample)
 
 betscale.pack(side="left")
+ratthres_slider.pack(side="left")
 
 stripframe.pack(side="top")
+thresgo.pack(side="top")
 tkinter.Label(stripframe, text="0.").pack(side="left")
 betgo.pack(side="left")
 biasgo.pack(side="left")
