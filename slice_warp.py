@@ -42,10 +42,11 @@ templatebrain = "/opt/ni_tools/standard/mni_icbm152_nlin_asym_09c/mni_icbm152_t1
 mrpath = '/Volumes/HostDicom/'  # mount point for scanner
 initialdir = mrpath
 
+# what program to use to open files. "open" on osx. maybe "xdg-open" on linux?
 filebrowser = 'open'
 
 # things change if we are testing (local computer)
-if os.uname().nodename in ["reese"]:  # , "7TMacMini.local"]:
+if os.uname().nodename in ["reese", "kt"]:  # , "7TMacMini.local"]:
     mrpath = os.path.join(os.path.dirname(__file__), "example/")
     initialdir = mrpath
 
@@ -55,21 +56,28 @@ master = tkinter.Tk()
 master.title('Subject Native Slice Orientation')
 
 # ---- make sure we have the mount ----
-if not os.path.exists(mrpath) and len(sys.argv) > 1 and sys.argv[1] != 'test':
+# not needed if we specfied a file on the command line
+#  though we will try if first argument is test (why? -- is this used by osx shortcut?)
+argisnottest = len(sys.argv) > 1 and sys.argv[1] != 'test'
+if not os.path.exists(mrpath) and argisnottest:
     tkinter.messagebox.showerror(
         "Error", "MR is not mounted?! (%s)\nuse command+k in finder" % mrpath)
     sys.exit(1)
 
 
 # ----- get dicom directory ----
-# code hangs here until user makes a choice
+# can also choose a nifti file
+# if nothing given on command line
+#  code hangs here until user makes a choice
 master.update()  # close the file dialog box on OS X
-master.filename = \
-    tkinter.filedialog.askopenfilename(
-        initialdir=initialdir,
-        title="Select a representative DICOM",
-    )
-# filetypes = (("all files","*.*"),("Dicoms","MR*")))
+if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+    master.filename = sys.argv[1]
+else:
+    master.filename = \
+        tkinter.filedialog.askopenfilename(
+            initialdir=initialdir,
+            title="Select a representative DICOM",
+        )
 master.update()  # close the file dialog box on OS X
 if not master.filename:
     sys.exit(1)
