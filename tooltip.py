@@ -5,7 +5,7 @@ https://stackoverflow.com/questions/20399243/display-message-when-hovering-over-
 from tkinter import Toplevel, Label, LEFT, SOLID
 
 XOFFSET = 70
-YOFFSET = 57
+YOFFSET = 47
 
 
 class ToolTip(object):

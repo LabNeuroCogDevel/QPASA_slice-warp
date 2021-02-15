@@ -5,6 +5,7 @@ slice_warp.py test         # run even if mount isn't available
 slice_warp.py /path/to/nii # use /path/to/nii instead of file selector
 slice_warp.py /path/to/nii test # use nifti and don't run through default steps
 """
+CARE_ABOUT_MOUNT = False
 
 import tkinter
 import tkinter.filedialog
@@ -67,7 +68,7 @@ master.title('Subject Native Slice Orientation')
 # not needed if we specified a file on the command line
 #  though we will try if first argument is test (why? -- is this used by osx shortcut?)
 have_argfile = len(sys.argv) > 1
-if not os.path.exists(mrpath) and not have_argfile:
+if CARE_ABOUT_MOUNT and not os.path.exists(mrpath) and not have_argfile:
     tkinter.messagebox.showerror(
         "Error", "MR is not mounted?! (%s)\nuse command+k in finder" % mrpath)
     sys.exit(1)
@@ -281,6 +282,8 @@ def normalize_by_backup(inname="mprage_bet.nii.gz",
     """
     intensitys might range negative to positive. want to fix that
     should happen after skull stripping
+
+    20210215 - this is not needed. intensity issue is with orig
     """
     if not should_norm:
         return
@@ -290,10 +293,10 @@ def normalize_by_backup(inname="mprage_bet.nii.gz",
     logtxt("# brickstat median for %s and %s" % (inname, backup), tag="cmd")
     med_orig = float(ratthres.get_3dbstat(backup, '-median'))
     med_bet = float(ratthres.get_3dbstat(inname, '-median'))
-    min3d = ratthres.get_3dbstat(inname, '-min')
-    logtxt("# min: %s; coversion orig/bet median: %.2f/%.2f" %
+    min3d = float(ratthres.get_3dbstat(inname, '-min'))
+    logtxt("# min: %0.2f; coversion orig/bet median: %0.2f/%0.2f" %
            (min3d, med_orig, med_bet), tag="cmd")
-    runcmd("3dcalc -overwrite -a %s -expr (a-%s)*%.2f -prefix %s" %
+    runcmd("3dcalc -overwrite -a %s -expr (a-%0.2f)*%0.2f -prefix %s" %
            (inname, min3d, med_orig/med_bet, outname))
 
 
@@ -350,7 +353,7 @@ def skullstrip(fname="mprage1_res.nii.gz"):
     runcmd(
         "bet %s mprage_bet.nii.gz -f %.02f" %
         (fname, betscale.get()))
-    normalize_by_backup()
+    # normalize_by_backup()
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
@@ -388,6 +391,10 @@ def saveandafni():
     # maybe we are using compression:
     if not os.path.isfile(mpragefile):
         mpragefile = mpragefile + '.gz'
+
+    intensity_corrected = "mprage1_res_inhomcor.nii.gz"
+    if os.path.isfile(intensity_corrected):
+        mpragefile = intensity_corrected
 
     mprage = nipy.load_image(mpragefile)
     sliceimg = nipy.load_image('slice_mprage_rigid.nii.gz')
@@ -532,13 +539,13 @@ redogo = tkinter.Button(stripframe, text='0. start over',
                         command=reset_initial)
 ToolTip(redogo, 'reset mprage1_res.nii.gz to initial state')
 
-biasgo = tkinter.Button(stripframe, text='1. brighten\n(inhom bias)',
+biasgo = tkinter.Button(stripframe, text='1. brighten',
                         command=bias_correct)
-ToolTip(biasgo, 'GRAPPA T1 need FFT shift. MP2RAGE does not')
+ToolTip(biasgo, 'inhom bias corrction. GRAPPA T1 need FFT shift.\nNOT NEEDED for  MP2RAGE')
 
-thresgo = tkinter.Button(stripframe, text='2. remove artifact\n(apply thres)',
+thresgo = tkinter.Button(stripframe, text='2. remove artifact',
                          command=apply_threshold)
-ToolTip(thresgo, 'remove bright spot in nasal cavity inhabiting skullstrip.' +
+ToolTip(thresgo, 'apply thresh to remove bright spot in nasal cavity inhabiting skullstrip.' +
         '\nartifact introduced by GRAPPA bias correction')
 
 betgo = tkinter.Button(stripframe, text='(re)strip', command=skullstrip)
@@ -549,16 +556,17 @@ robexgo = tkinter.Button(stripframe, text='robex (slow)', command=run_robex)
 ToolTip(robexgo, "slower 'robust brain extraction' might do better")
 
 warpgo = tkinter.Button(bframe, text='4. warp', command=warp)
-ToolTip(warpgo, "use FSL flirt. *linear* warp T1<->MNI")
+ToolTip(warpgo, "use FSL flirt. *linear* warp T1<->MNI.\n"+
+        "START HERE if everything looks good at launch")
 
 makego = tkinter.Button(bframe, text='5. make', command=saveandafni)
 ToolTip(makego, "Reverse warp atlas to subject. launch AFNI to inspect")
 
 copygo = tkinter.Button(bframe, text='6. copy back', command=copyback)
-ToolTip(makego, "copy dicom with altas imposed back to scanner")
+ToolTip(copygo, "copy dicom with altas imposed back to scanner")
 
 sharego = tkinter.Button(bframe, text='7. watermark', command=brainimgageshare)
-ToolTip(makego, "launch watermarking program: brain image share")
+ToolTip(sharego, "launch watermarking program: brain image share")
 
 #  --- checkbox
 # resample to 2mm
@@ -592,7 +600,7 @@ makego.pack(side="top")
 copygo.pack(side="top")
 sharego.pack(side="top")
 resampleCheck.pack(side="bottom")
-norm_check.pack(side="bottom")
+# norm_check.pack(side="bottom")
 
 # ----- image menu and log -----
 avalImgMenu.pack()

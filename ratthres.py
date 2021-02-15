@@ -38,6 +38,8 @@ def cmd_single_out(cmd):
 def get_3dbstat(inname, val_option):
     """
     use brickstat to get val_option (e.g. -min, -max)
+    >>> get_3dbstat("example/20210122_grappa.nii.gz", '-min')
+    '1'
     """
     return cmd_single_out(['3dBrickStat', '-slow', '-non-zero',
                            val_option, inname])
@@ -65,6 +67,5 @@ def get_3dp(inname, percentile):
 
 
 def get_3d80p(inname):
-    """ 80th percentile
-    """
+    """80th percentile"""
     return get_3dp(inname, '80')
