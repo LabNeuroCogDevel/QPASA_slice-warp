@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+slice_warp.py              # run file selector. check for mount location.
+slice_warp.py test         # run even if mount isn't available
+slice_warp.py /path/to/nii # use /path/to/nii instead of file selector
+slice_warp.py /path/to/nii test # use nifti and don't run through default steps
+"""
+
 import tkinter
 import tkinter.filedialog
 import tkinter.messagebox
@@ -25,6 +32,7 @@ import inhomfft
 # from rewritedcm import *
 # if we didn't want to use afni
 import ratthres
+from tooltip import ToolTip
 
 # FLOAT32 vs FLOAT64? dont care
 os.environ['AFNI_NIFTI_TYPE_WARN'] = 'NO'
@@ -56,10 +64,10 @@ master = tkinter.Tk()
 master.title('Subject Native Slice Orientation')
 
 # ---- make sure we have the mount ----
-# not needed if we specfied a file on the command line
+# not needed if we specified a file on the command line
 #  though we will try if first argument is test (why? -- is this used by osx shortcut?)
-argisnottest = len(sys.argv) > 1 and sys.argv[1] != 'test'
-if not os.path.exists(mrpath) and argisnottest:
+have_argfile = len(sys.argv) > 1
+if not os.path.exists(mrpath) and not have_argfile:
     tkinter.messagebox.showerror(
         "Error", "MR is not mounted?! (%s)\nuse command+k in finder" % mrpath)
     sys.exit(1)
@@ -70,8 +78,9 @@ if not os.path.exists(mrpath) and argisnottest:
 # if nothing given on command line
 #  code hangs here until user makes a choice
 master.update()  # close the file dialog box on OS X
-if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
-    master.filename = sys.argv[1]
+if have_argfile and os.path.exists(sys.argv[1]):
+    master.filename = os.path.abspath(sys.argv[1])
+    print("set filename via command line: %s" % master.filename)
 else:
     master.filename = \
         tkinter.filedialog.askopenfilename(
@@ -122,16 +131,20 @@ avalImgMenu = tkinter.OptionMenu(master, selectedImg, [])
 
 # ----- functions -----
 def bname(path):
-    """basename that works for folders 
-    >>> bname('/a/b/') 
+    """basename that works for folders
+    >>> bname('/a/b/')
     'b'
-    >>> bname('/a/b') 
+    >>> bname('/a/b')
     'b'
     """
-    return([x for x in path.split(os.path.sep) if x ][-1])
+    return([x for x in path.split(os.path.sep) if x][-1])
 
 
 def logtxt(txt, tag='output'):
+    """
+    message to text box area
+    tags info, cmd, output, error, alert.  see logarea.tag_config lines
+    """
     logarea.mark_set(tkinter.INSERT, tkinter.END)
     logarea.config(state="normal")
     logarea.insert(tkinter.INSERT, txt + "\n", tag)
@@ -166,11 +179,14 @@ def runcmd(cmd, logit=True):
         cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     logcmdoutput(p, logit)
 
-## -- copy nii or make form dicom (mprage1.nii.gz)
 
+# ## -- copy nii or make form dicom (mprage1.nii.gz)
 def backup():
-    """ create a copy of initial that we can return to if bias or thres is wonky """
+    """
+    create a copy of initial that we can return to if bias or thres is wonky
+    """
     runcmd('3dcopy mprage1_res.nii.gz mprage1_res_backup.nii.gz')
+
 
 def getInitialInput():
     # dcm2niix will put the echo number if we ask for it or not
@@ -182,6 +198,15 @@ def getInitialInput():
     resample()
     updateimg('mprage1_res.nii.gz')
     backup()
+
+    # dont do anything when test
+    if len(sys.argv) > 1 and "test" in sys.argv:
+        return
+
+    # bias and threshold added after transition to grappa
+    # TODO: check if dicom and protocol is grapa?
+    bias_correct()
+    apply_threshold()
     skullstrip()
 
 
@@ -250,6 +275,28 @@ def resample(*args):
     shouldhave('mprage1_res.nii.gz')
 
 
+def normalize_by_backup(inname="mprage_bet.nii.gz",
+                        outname="mprage_bet.nii.gz",
+                        backup='mprage1_res_backup.nii.gz'):
+    """
+    intensitys might range negative to positive. want to fix that
+    should happen after skull stripping
+    """
+    if not should_norm:
+        return
+    if not os.path.exists(backup):
+        logtxt("%s does not exist, cannot norm!" % backup, tag='error')
+
+    logtxt("# brickstat median for %s and %s" % (inname, backup), tag="cmd")
+    med_orig = float(ratthres.get_3dbstat(backup, '-median'))
+    med_bet = float(ratthres.get_3dbstat(inname, '-median'))
+    min3d = ratthres.get_3dbstat(inname, '-min')
+    logtxt("# min: %s; coversion orig/bet median: %.2f/%.2f" %
+           (min3d, med_orig, med_bet), tag="cmd")
+    runcmd("3dcalc -overwrite -a %s -expr (a-%s)*%.2f -prefix %s" %
+           (inname, min3d, med_orig/med_bet, outname))
+
+
 def apply_threshold(inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz", backup=True):
     """ get ratio of max slider value and remove from image"""
     if inname == outname:
@@ -286,11 +333,12 @@ def bias_correct(inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
     N.B. defaults to rewritting input (mprage1_res.nii.gz)"""
     logtxt("inhomfft %s %s" % (inname, outname), tag='cmd')
     inhomfft.rewrite(inname, outname)
-    runcmd('3dcopy %s biascor.nii.gz' % outname)
+    runcmd('3dcopy -overwrite %s biascor.nii.gz' % outname)
     updateimg(outname)
 
 
-def skullstrip_bias(inname="mprage1_res.nii.gz", outname="mprage1_res_inhomcor.nii.gz"):
+def skullstrip_bias(inname="mprage1_res.nii.gz",
+                    outname="mprage1_res_inhomcor.nii.gz"):
     """ skullstrip with inhomo fft fixed input"""
     if not os.path.exists(outname):
         logtxt("inhomfft %s %s" % (inname, outname), tag='cmd')
@@ -302,6 +350,7 @@ def skullstrip(fname="mprage1_res.nii.gz"):
     runcmd(
         "bet %s mprage_bet.nii.gz -f %.02f" %
         (fname, betscale.get()))
+    normalize_by_backup()
     shouldhave('mprage_bet.nii.gz')
     updateimg('mprage_bet.nii.gz')
 
@@ -479,29 +528,52 @@ thres_slider = tkinter.Scale(scaleframe, from_=.1, to=2, resolution=.05)
 thres_slider.set(.5)
 
 # ----- buttons -----
-redogo = tkinter.Button(stripframe, text='start over',
+redogo = tkinter.Button(stripframe, text='0. start over',
                         command=reset_initial)
-biasgo = tkinter.Button(stripframe, text='inhom bias',
+ToolTip(redogo, 'reset mprage1_res.nii.gz to initial state')
+
+biasgo = tkinter.Button(stripframe, text='1. brighten\n(inhom bias)',
                         command=bias_correct)
-thresgo = tkinter.Button(stripframe, text='apply thres',
-                        command=apply_threshold)
-betgo = tkinter.Button(stripframe, text='re-strip', command=skullstrip)
-#biasgo = tkinter.Button(stripframe, text='inhom+re-strip',
-#                        command=skullstrip_bias)
-robexgo = tkinter.Button(stripframe, text='robex', command=run_robex)
+ToolTip(biasgo, 'GRAPPA T1 need FFT shift. MP2RAGE does not')
 
-warpgo = tkinter.Button(bframe, text='1. warp', command=warp)
-makego = tkinter.Button(bframe, text='2. make', command=saveandafni)
-copygo = tkinter.Button(bframe, text='3. copy back', command=copyback)
-sharego = tkinter.Button(bframe, text='4. watermark', command=brainimgageshare)
+thresgo = tkinter.Button(stripframe, text='2. remove artifact\n(apply thres)',
+                         command=apply_threshold)
+ToolTip(thresgo, 'remove bright spot in nasal cavity inhabiting skullstrip.' +
+        '\nartifact introduced by GRAPPA bias correction')
 
-# checkbox
+betgo = tkinter.Button(stripframe, text='(re)strip', command=skullstrip)
+ToolTip(betgo, "skull strip with FSL's BET program." +
+        " use 'skull' slider to adjust how much is removed")
+
+robexgo = tkinter.Button(stripframe, text='robex (slow)', command=run_robex)
+ToolTip(robexgo, "slower 'robust brain extraction' might do better")
+
+warpgo = tkinter.Button(bframe, text='4. warp', command=warp)
+ToolTip(warpgo, "use FSL flirt. *linear* warp T1<->MNI")
+
+makego = tkinter.Button(bframe, text='5. make', command=saveandafni)
+ToolTip(makego, "Reverse warp atlas to subject. launch AFNI to inspect")
+
+copygo = tkinter.Button(bframe, text='6. copy back', command=copyback)
+ToolTip(makego, "copy dicom with altas imposed back to scanner")
+
+sharego = tkinter.Button(bframe, text='7. watermark', command=brainimgageshare)
+ToolTip(makego, "launch watermarking program: brain image share")
+
+#  --- checkbox
+# resample to 2mm
 shouldresample = tkinter.IntVar()
 shouldresample.set(1)
 resampleCheck = tkinter.Checkbutton(
     master, text="2mm?", variable=shouldresample)
 resampleCheck.var = shouldresample
 shouldresample.trace("w", resample)
+
+# normalize to backup/original mprage
+should_norm = tkinter.IntVar()
+should_norm.set(1)
+norm_check = tkinter.Checkbutton(master, text="norm?", variable=should_norm)
+norm_check.var = should_norm
 
 tkinter.Label(scaleframe, text="skull  thres").pack(side="top")
 betscale.pack(side="left")
@@ -511,7 +583,7 @@ stripframe.pack(side="top")
 redogo.pack(side="top")
 biasgo.pack(side="top")
 thresgo.pack(side="top")
-tkinter.Label(stripframe, text="0.").pack(side="left")
+tkinter.Label(stripframe, text="3.").pack(side="left")
 betgo.pack(side="left")
 robexgo.pack(side="left")
 
@@ -520,6 +592,7 @@ makego.pack(side="top")
 copygo.pack(side="top")
 sharego.pack(side="top")
 resampleCheck.pack(side="bottom")
+norm_check.pack(side="bottom")
 
 # ----- image menu and log -----
 avalImgMenu.pack()
