@@ -537,7 +537,8 @@ thres_slider.set(.5)
 # ----- buttons -----
 redogo = tkinter.Button(stripframe, text='0. start over',
                         command=reset_initial)
-ToolTip(redogo, 'reset mprage1_res.nii.gz to initial state')
+ToolTip(redogo, 'reset mprage1_res.nii.gz to initial state.\n'+
+        "NEEDED before reapplying step 1: bias correction")
 
 biasgo = tkinter.Button(stripframe, text='1. brighten',
                         command=bias_correct)
