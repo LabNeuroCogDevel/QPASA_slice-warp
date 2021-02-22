@@ -41,12 +41,22 @@ function rewritedcm(expfolder,niifile,savedirprefix)
                          % 184x 210 x 192  % 20180216 1x1x1, nfiles=192
     strfileext = '*.IMA';
     [nfiles,files] = dicom_filelist(strfileext);
+    nslices_nii = size(Y, 3)
     
     uid = dicomuid;
     disp('DICOM conversion - ');
     disp(pwd);
-    fprintf('have %d files in %s\n',nfiles,expfolder );
+    fprintf('have %d files in %s. nifti is %d slices\n',...
+            nfiles, expfolder, nslices_nii);
     
+    if(nslices_nii ~= nfiles)
+       if(mod(nfiles, nslices_nii) == 0)
+          fprintf('WARNING: slice and ndcm differ but mod=0\n')
+          nfiles = nslices_nii;
+       else
+          error('BAD dcm number and slice number!')
+       end
+    end
     % how were images aquired? how do we put our LPI nifti back to dcm
     firstinfo = dicominfo(files{1});
 
@@ -64,8 +74,8 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          sliceidx=nfiles-ll +1;
          strfile=files{sliceidx};
 
-         if( mod(sliceidx,10) == 0)
-            fprintf('slice %d, %s\n',sliceidx,strfile)
+         if( 1 || mod(sliceidx,10) == 1)
+            fprintf('on slice %d, %s\n',sliceidx,strfile)
          end
 
          info = dicominfo(strfile);
@@ -107,6 +117,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          %% save new dcm (and maybe make a folder)
          % ;;New folder generation
          newfolder = [savein SeriesDescription_];%
+         fprintf('saving to %s\n', newfolder)
          if (ll==1)
              str_command = ['mkdir ' newfolder]; 
              [status,result] = system(str_command); %disp(str_command); 
@@ -127,8 +138,12 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 end
 
 function [n,f] = dicom_filelist(patt)
-  f=strsplit(ls(patt));
-  keepidx=cellfun(@(x) ~isempty(x), f);
-  n=nnz(keepidx);
-  f=f(keepidx);
+  % f=strsplit(ls(patt));
+  % keepidx=cellfun(@(x) ~isempty(x), f);
+  % n=nnz(keepidx);
+  % f=f(keepidx);
+  % 20210222 - ls is in color?!
+  f = dir(patt);
+  f = arrayfun(@(x) fullfile(x.folder, x.name), f, 'Uni', 0);
+  n = length(f);
 end

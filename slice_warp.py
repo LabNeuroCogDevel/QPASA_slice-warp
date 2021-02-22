@@ -386,6 +386,14 @@ def warp():
     logtxt("[%s] warp finished!" % datetime.datetime.now(), tag='alert')
 
 
+def prepare_slice(mprage, sliceimg, intensity_fix):
+    t1andslc = mprage.get_data()
+    intensityval = numpy.percentile(t1andslc[t1andslc > 0], 90)
+    t1andslc_data = (intensityval * (sliceimg.get_data() > 0)) + t1andslc
+    # fix low range so exam cart can see mprage
+    t1andslc_data = t1andslc_data * intensity_fix
+    return  t1andslc_data
+
 def saveandafni():
     mpragefile = 'mprage1_res.nii'
     # maybe we are using compression:
@@ -393,8 +401,10 @@ def saveandafni():
         mpragefile = mpragefile + '.gz'
 
     intensity_corrected = "mprage1_res_inhomcor.nii.gz"
+    intensity_fix = 1
     if os.path.isfile(intensity_corrected):
         mpragefile = intensity_corrected
+        intensity_fix = 10000
 
     mprage = nipy.load_image(mpragefile)
     sliceimg = nipy.load_image('slice_mprage_rigid.nii.gz')
@@ -403,6 +413,8 @@ def saveandafni():
     t1andslc = mprage.get_data()
     intensityval = numpy.percentile(t1andslc[t1andslc > 0], 90)
     t1andslc_data = (intensityval * (sliceimg.get_data() > 0)) + t1andslc
+    # fix low range so exam cart can see mprage
+    t1andslc_data = t1andslc_data * intensity_fix
 
     # save new image out
     t1andslc = mprage.from_image(mprage, data=t1andslc_data)
