@@ -38,8 +38,11 @@ def get_dxyz(img):
     # res=[ float(x) for x in orig.decode().split(' ')]
     # return(res)
 
-def subid_from_dcm(filename):
-    """extract PAT ID from dicom so temp folder can have recognizable name"""
+def subjid_from_dcm(filename):
+    """extract PAT ID from dicom so temp folder can have recognizable name
+    >>> subjid_from_dcm('example/20210220_143419_mlBrainStrip_MPRAGE_GRAPPA1mm/20210220LUNA1.MR.TIEJUN_JREF-LUNA.0013.0001.2021.02.20.14.34.40.312500.263962728.IMA')
+    '1_20210220Luna1'
+    """
     # get id from dicom
     if re.match('(^MR.*)|(.*IMA)$', filename):
         selectedDicom = pydicom.read_file(filename)

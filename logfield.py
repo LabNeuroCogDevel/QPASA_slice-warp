@@ -32,6 +32,7 @@ class LogField:
         """
         if not self.logarea:
             print("%s: %s" % (tag, txt))
+            return
         self.logarea.mark_set(tkinter.INSERT, tkinter.END)
         self.logarea.config(state="normal")
         self.logarea.insert(tkinter.INSERT, txt + "\n", tag)
