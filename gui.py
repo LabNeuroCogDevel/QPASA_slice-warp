@@ -58,7 +58,9 @@ def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
 
     # if bias correction removed DC component. add intensity back
     # should also be corrected in inhomofft
-    if(numpy.max(t1) < 10000):
+    # ..and we should be using original
+    # ..and dcm maxintensity=1000 in rewritedcm.m
+    if numpy.max(t1) < 10000:
         intensity_fix = 10000
     else:
         intensity_fix = 1
@@ -387,10 +389,13 @@ class SliceWarp:
         if not os.path.isfile(mpragefile):
             mpragefile = mpragefile + '.gz'
 
+        if not os.path.isfile(mpragefile):
+            self.logfield.logtxt("Ut Oh!? DNE: %s" % mpragefile, 'error')
+            return
         # why do we care if the slice is put on top of the bias corrected image?
-        intensity_corrected = "mprage1_res_inhomcor.nii.gz"
-        if os.path.isfile(intensity_corrected):
-            mpragefile = intensity_corrected
+        #intensity_corrected = "mprage1_res_inhomcor.nii.gz"
+        #if os.path.isfile(intensity_corrected):
+        #    mpragefile = intensity_corrected
 
         t1andslc = add_slice(mpragefile)
         nipy.save_image(t1andslc, 'anatAndSlice_res.nii.gz')
