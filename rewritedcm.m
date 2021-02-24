@@ -5,6 +5,9 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 % TODO: params for outputdir, DCM pattern, +protocolnumber
 %
 
+% will this work in octave?
+% `dicominfo` is in the 'dicom' package
+
 % * reconstructed images are LPI
 % * dicoms are RAI
 % * nfiles (dcm) can be either sagital or axial

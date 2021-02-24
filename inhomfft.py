@@ -48,7 +48,14 @@ def inhomfft(data, winsize=[10, 12, 10]):
     icd = data / np.abs(filt)  # * mnval
     icd[too_small] = 0
 
-    return icd
+    # dc component removed? values too low
+    # rescale
+    if(np.max(icd) < 10000):
+        intensity_fix = 10000
+    else:
+        intensity_fix = 1
+
+    return icd*intensity_fix
 
 
 def rewrite(fname, outname=None):

@@ -10,12 +10,14 @@ import tempfile
 import subprocess
 import nipy
 import numpy
+import pydicom
 
 import inhomfft
 import ratthres
 from logfield import LogField
 from tooltip import ToolTip
 from image_preview import ImagePreview
+from settings import FILEBROWSER, ORIGDIR
 
 def bname(path):
     """basename that works for folders
@@ -36,14 +38,26 @@ def get_dxyz(img):
     # res=[ float(x) for x in orig.decode().split(' ')]
     # return(res)
 
+def subid_from_dcm(filename):
+    """extract PAT ID from dicom so temp folder can have recognizable name"""
+    # get id from dicom
+    if re.match('(^MR.*)|(.*IMA)$', filename):
+        selectedDicom = pydicom.read_file(filename)
+        subjid = "%s_%s" % (selectedDicom.PatientID, selectedDicom.PatientName)
+    else:
+        subjid = 'unknown'
+    return subjid
 
 def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
+    """add slice warped into native space to mprage"""
     mprage = nipy.load_image(mpragefile)
     t1 = mprage.get_data()
 
     sliceimg = nipy.load_image(atlas_fname)
     slice_atlas = sliceimg.get_data()
 
+    # if bias correction removed DC component. add intensity back
+    # should also be corrected in inhomofft
     if(numpy.max(t1) < 10000):
         intensity_fix = 10000
     else:
@@ -105,6 +119,10 @@ class SliceWarp:
                                 command=self.bias_correct)
         ToolTip(biasgo, 'inhom bias corrction. GRAPPA T1 need FFT shift.\nNOT NEEDED for  MP2RAGE')
 
+        afni_biasgo = tkinter.Button(stripframe, text='brighten (Alt)',
+                                command=self.bias_correct)
+        ToolTip(afni_biasgo, 'Alternative to brighten.\nBias corrction with AFNIs Unifize.')
+
         thresgo = tkinter.Button(stripframe, text='2. remove artifact',
                                  command=self.apply_threshold)
         ToolTip(thresgo, 'apply thresh to remove bright spot in nasal cavity inhabiting skullstrip.' +
@@ -112,7 +130,7 @@ class SliceWarp:
 
         betgo = tkinter.Button(stripframe, text='(re)strip', command=self.skullstrip)
         ToolTip(betgo, "skull strip with FSL's BET program." +
-                " use 'skull' slider to adjust how much is removed")
+                " use 'skull' slider to adjust how much is removed\nhigh value removes more")
 
         robexgo = tkinter.Button(stripframe, text='robex (slow)', command=self.run_robex)
         ToolTip(robexgo, "slower 'robust brain extraction' might do better")
@@ -150,17 +168,22 @@ class SliceWarp:
         self.thres_slider.pack(side="right")
 
         stripframe.pack(side="top")
-        redogo.pack(side="top")
-        biasgo.pack(side="top")
-        thresgo.pack(side="top")
+        redogo.pack(side="top", expand="yes", fill="both")
+        # bias correction
+        #tkinter.Label(stripframe, text="1.").pack(side="top",fill="y")
+        biasgo.pack(side="top", fill="both")
+        afni_biasgo.pack(side="top", fill="both")
+        # thre
+        thresgo.pack(side="top", fill="both")
+        # skull striping options
         tkinter.Label(stripframe, text="3.").pack(side="left")
         betgo.pack(side="left")
         robexgo.pack(side="left")
 
-        warpgo.pack(side="top")
-        makego.pack(side="top")
-        copygo.pack(side="top")
-        sharego.pack(side="top")
+        warpgo.pack(side="top", fill="both")
+        makego.pack(side="top", fill="both")
+        copygo.pack(side="top", fill="both")
+        sharego.pack(side="top", fill="both")
         resampleCheck.pack(side="bottom")
         # norm_check.pack(side="bottom")
 
@@ -169,12 +192,20 @@ class SliceWarp:
         self.imgview.photolabel.pack()
         self.logarea.pack()
 
+        # --- menu
+        menu = tkinter.Menu(master)
+        menu.add_command(label="another", command=self.open_new)
+        menu.add_command(label="prev_folder", command=self.open_prev)
+        master.config(menu=menu)
+
     def updateimg(self, *args):
         "lazy wrapper for imgview so we dont have to change code everywhere"
         self.imgview.updateimg(*args)
 
-    def start(self, dcmdir, outputdirroot, subjid):
-        self.dcmdir = dcmdir
+    def setup(self, filename, outputdirroot):
+        """setup based on representative dicom file"""
+        self.dcmdir = os.path.dirname(filename)
+        subjid = subid_from_dcm(filename)
         # ----- go to new directory -----
         self.tempdir = tempfile.mkdtemp(dir=outputdirroot, prefix=subjid)
         print(self.tempdir)
@@ -182,12 +213,13 @@ class SliceWarp:
         # os.symlink(atlas, './')
 
         # ----- startup -----
-        self.logfield.logtxt("reading from " + dcmdir)
+        self.logfield.logtxt("reading from " + self.dcmdir)
         self.logfield.logtxt("saving files to " + self.tempdir)
 
+    def start(self):
         # ----- start -----
         # run dicom2nii (and skull strip) or 3dcopy as soon as we launch
-        self.master.after(0, self.getInitialInput)
+        self.master.after(0, self.get_initial_input)
         # show the gui
         tkinter.mainloop()
 
@@ -202,6 +234,7 @@ class SliceWarp:
         self.logfield.runcmd(cmd)
 
     def make_input(self):
+        """initial input to mprage1.nii.gz to start the pipeline"""
         # dcm2niix will put the echo number if we ask for it or not
         # do we have a nii or a dcmdir?
         if re.match('.*\.nii(\.gz)?$', self.master.filename):
@@ -209,8 +242,7 @@ class SliceWarp:
         else:
             self.logfield.runcmd("dcm2niix -o ./ -f mprage%%e %s" % self.dcmdir)
 
-
-    def getInitialInput(self):
+    def get_initial_input(self):
         """setup input file and run quick (inhomo+bet) steps with the default parameters"""
         self.make_input()
         self.resample()
@@ -227,17 +259,10 @@ class SliceWarp:
         self.apply_threshold()
         self.skullstrip()
 
-
-
-    # get original resolution
-    # keep as string for passing back into resample
-
-
     def resample(self, *args):
-        # what are our resample dimenstions?
-        # orig = get_dxyz('mprage1.nii')
-        # min_d=min([ float(x) for x in orig.split(' ')])
-        # -- instead always use 2mm
+        """ slice is in 2mm MNI. use 2mm for native space too
+        will need to resample back before putting into dicoms
+        """
         if self.shouldresample.get():  # and min_d < 1:
             cmd = "3dresample -overwrite -inset mprage1.nii -dxyz 2 2 2 -prefix mprage1_res.nii.gz"
         else:
@@ -246,7 +271,6 @@ class SliceWarp:
 
         self.logfield.runcmd(cmd)
         self.logfield.shouldhave('mprage1_res.nii.gz')
-
 
     def apply_threshold(self,
             inname="mprage1_res.nii.gz",
@@ -269,7 +293,6 @@ class SliceWarp:
         # resave_nib(inname, outname, lambda d: zero_thres(d, rat))
         self.updateimg(outname)
 
-
     def reset_initial(self,
             inname="mprage1_res_backup.nii.gz",
             outname="mprage1_res.nii.gz"):
@@ -282,7 +305,6 @@ class SliceWarp:
 
         self.updateimg(outname)
 
-
     def bias_correct(self, inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
         """run fft/fftshift/ifft to correct bias in 7T grappa
         N.B. defaults to rewritting input (mprage1_res.nii.gz)"""
@@ -291,6 +313,14 @@ class SliceWarp:
         self.logfield.runcmd('3dcopy -overwrite %s biascor.nii.gz' % outname)
         self.updateimg(outname)
 
+    def afni_bias_correct(self, inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
+        """
+        remove "shading" artifiact bias field/RF inhomogeneities
+        takes about 25 seconds. much faster than FSL's FAST
+        """
+        cmd="3dUnifize -overwrite -prefix %s %s" % (inname, outname)
+        self.logfield.runcmd(cmd)
+        self.updateimg(outname)
 
     def skullstrip_bias(self,
                         inname="mprage1_res.nii.gz",
@@ -301,14 +331,13 @@ class SliceWarp:
             inhomfft.rewrite(inname, outname)
         self.skullstrip(outname)
 
-
     def skullstrip(self, fname="mprage1_res.nii.gz"):
+        "run bet"
         self.logfield.runcmd(
             "bet %s mprage_bet.nii.gz -f %.02f" %
             (fname, self.betscale.get()))
         self.logfield.shouldhave('mprage_bet.nii.gz')
         self.updateimg('mprage_bet.nii.gz')
-
 
     def run_robex(self):
         """run robex after slow prompt/warning"""
@@ -324,8 +353,8 @@ class SliceWarp:
         self.logfield.shouldhave('mprage_bet.nii.gz')
         self.updateimg('mprage_bet.nii.gz')
 
-
     def warp(self):
+        """flirt and applyxf4D"""
         self.logfield.runcmd(
             "flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline" %
             self.template_brain)
@@ -338,13 +367,27 @@ class SliceWarp:
         self.updateimg('slice_mprage_rigid.nii.gz', 'mprage_bet.nii.gz', 'sliceRed.pgm')
         self.logfield.logtxt("[%s] warp finished!" % datetime.datetime.now(), tag='alert')
 
-
     def saveandafni(self):
-        mpragefile = 'mprage1_res.nii'
+        "add slice. save. open folder and afni. copy back to dicom"
+        self.make_with_slice()
+        subprocess.Popen(
+            ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz',
+                '-com', 'OPEN_WINDOW axialimage mont=3x3:5',
+                '-com', 'OPEN_WINDOW sagittalimage mont=3x3:5',
+                '-com', 'SET_OVERLAY slice_mprage_rigid.nii.gz',
+                '-com', 'SET_XHAIRS SINGLE',
+                '-com', 'SET_PBAR_SIGN +'])
+        subprocess.Popen([FILEBROWSER, self.tempdir])
+        # dcm rewrite done last so we can see errors in log window
+        self.write_back_to_dicom()
+
+    def make_with_slice(self, mpragefile = 'mprage1_res.nii'):
+        """add slice to initial image (with skull)"""
         # maybe we are using compression:
         if not os.path.isfile(mpragefile):
             mpragefile = mpragefile + '.gz'
 
+        # why do we care if the slice is put on top of the bias corrected image?
         intensity_corrected = "mprage1_res_inhomcor.nii.gz"
         if os.path.isfile(intensity_corrected):
             mpragefile = intensity_corrected
@@ -359,20 +402,18 @@ class SliceWarp:
         self.logfield.runcmd('3dresample -overwrite -inset anatAndSlice_res.nii.gz -dxyz %s -prefix anatAndSlice_unres.nii.gz' %
                origdxyz)
 
-        # start afni
-        subprocess.Popen(
-            ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz',
-                '-com', 'OPEN_WINDOW axialimage mont=3x3:5',
-                '-com', 'OPEN_WINDOW sagittalimage mont=3x3:5',
-                '-com', 'SET_OVERLAY slice_mprage_rigid.nii.gz',
-                '-com', 'SET_XHAIRS SINGLE',
-                '-com', 'SET_PBAR_SIGN +'])
-        subprocess.Popen([FILEBROWSER, self.tempdir])
+    def write_back_to_dicom(self, niifile='anatAndSlice_unres.nii.gz'):
+        """put slice+anat into dicom ready to send back to scanner"""
 
-        # ----- finally write out dicoms -----
+        # # using python
+        # # something off with dicom ids? scan computer wont read
+        # print('rewritedcm("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
+        # rewritedcm(dcmdir, 'anatAndSlice_unres.nii.gz')
+
+
         # write it out as a dicom, using matlab
         mlcmd = "rewritedcm('%s','%s')" % (
-            dcmdir, os.path.join(self.tempdir, 'anatAndSlice_unres.nii.gz'))
+            self.dcmdir, os.path.join(self.tempdir, niifile))
         mlfull = [
             'matlab',
             '-nodisplay',
@@ -396,13 +437,8 @@ class SliceWarp:
                 'TERM': ""})
         self.logfield.logcmdoutput(mlp, True)
 
-        # # using python
-        # print('rewritedcm("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
-        # rewritedcm(dcmdir, 'anatAndSlice_unres.nii.gz')
-        # # so we can copy from it?
-
-
     def brainimgageshare(self):
+        """launch prog to create brain image to show participant"""
         # nii or nii.gz
         orig_mprage = os.path.join(self.tempdir, "mprage1.nii.gz")
         if not os.path.isfile(orig_mprage):
@@ -412,7 +448,6 @@ class SliceWarp:
         self.logfield.logruncmd(" ".join(cmd))
         # os.spawnl(os.P_NOWAIT, *cmd)
         subprocess.Popen(cmd)
-
 
     def copyback(self):
         """copy newly created dicom folder back to original dicom folder location
@@ -448,3 +483,34 @@ class SliceWarp:
             copy_tree(mldir, copyname)
             self.logfield.logtxt("copied warped slice to %s" % copyname, 'info')
 
+    def open_prev(self):
+        """go to a previous directory"""
+        initialdir = os.path.dirname(self.tempdir)
+        filename = \
+            tkinter.filedialog.askopenfilename(
+                initialdir=initialdir,
+                title="Select a representative file",
+            )
+        if not filename:
+            self.logfield.logtxt("not loading previous run", tag='error')
+            return
+        self.master.update()  # close the file dialog box on OS X
+        os.chdir(os.path.dirname(filename))
+        self.logfield.logtxt("open new folder: %s" % os.getcwd(), tag='info')
+        self.imgview.update_img_menu()
+
+    def open_new(self, initialdir=None):
+        if not initialdir:
+            initialdir = os.path.dirname(self.dcmdir)
+        filename = \
+            tkinter.filedialog.askopenfilename(
+                initialdir=initialdir,
+                title="Select a representative DICOM",
+            )
+        if not filename:
+            self.logfield.logtxt("not loading new dcm dir", tag='error')
+            return
+        self.master.filename = filename
+        self.master.update()  # close the file dialog box on OS X
+        self.setup(filename, os.path.dirname(self.tempdir))
+        self.get_initial_input()
