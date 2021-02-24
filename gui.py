@@ -204,12 +204,15 @@ class SliceWarp:
         "lazy wrapper for imgview so we dont have to change code everywhere"
         self.imgview.updateimg(*args)
 
-    def setup(self, filename, outputdirroot):
+    def setup(self, outputdirroot):
         """setup based on representative dicom file"""
+        filename = self.master.filename
         self.dcmdir = os.path.dirname(filename)
-        subjid = subid_from_dcm(filename)
+        self.subjid = subjid_from_dcm(filename)
         # ----- go to new directory -----
-        self.tempdir = tempfile.mkdtemp(dir=outputdirroot, prefix=subjid)
+        self.tempdir = tempfile.mkdtemp(
+                dir=outputdirroot,
+                prefix=self.subjid + "_")
         print(self.tempdir)
         os.chdir(self.tempdir)
         # os.symlink(atlas, './')
@@ -236,7 +239,8 @@ class SliceWarp:
         self.logfield.runcmd(cmd)
 
     def make_input(self):
-        """initial input to mprage1.nii.gz to start the pipeline"""
+        """initial input to mprage1.nii.gz to start the pipeline
+        TODO: master is holding filename. this is a hold over"""
         # dcm2niix will put the echo number if we ask for it or not
         # do we have a nii or a dcmdir?
         if re.match('.*\.nii(\.gz)?$', self.master.filename):
@@ -505,6 +509,7 @@ class SliceWarp:
         self.imgview.update_img_menu()
 
     def open_new(self, initialdir=None):
+        """start again - open another dicom directory"""
         if not initialdir:
             initialdir = os.path.dirname(self.dcmdir)
         filename = \

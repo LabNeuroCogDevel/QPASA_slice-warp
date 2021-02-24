@@ -80,7 +80,7 @@ def main():
         sys.exit(1)
 
     gui = SliceWarp(master, TEMPLATEBRAIN, ATLAS)
-    gui.setup(master.filename, OUTPUTDIRROOT)
+    gui.setup(OUTPUTDIRROOT)
     gui.start()
 
     # currently keeping all files used to generate slice
