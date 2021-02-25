@@ -43,7 +43,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     Y = double(img.img); % 96 x 118 x 128  % nfiles=96
                          % 184x 210 x 192  % 20180216 1x1x1, nfiles=192
     strfileext = '*.IMA';
-    [nfiles,files] = dicom_filelist(strfileext);
+    [nfiles, files] = dicom_filelist(strfileext);
     nslices_nii = size(Y, 3)
     
     uid = dicomuid;
@@ -53,13 +53,17 @@ function rewritedcm(expfolder,niifile,savedirprefix)
             nfiles, expfolder, nslices_nii);
     
     if(nslices_nii ~= nfiles)
-       if(mod(nfiles, nslices_nii) == 0)
-          fprintf('WARNING: slice and ndcm differ but mod=0\n')
-          nfiles = nslices_nii;
-       else
-          error('BAD dcm number and slice number!')
+       fprintf('WARNING: slice and ndcm differ %d files != %d slices\n', ...
+               nfiles, nslices_nii);
+       [nfiles, files] = discard_dup_uid(files);
+       % still fails
+       if(nslices_nii ~= nfiles)
+          msg = sprintf('mismatch even after discard! (%d files != %d slices)',...
+                        nfiles, nslices_nii);
+          error(msg)
        end
     end
+
     % how were images aquired? how do we put our LPI nifti back to dcm
     firstinfo = dicominfo(files{1});
 
@@ -77,7 +81,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          sliceidx=nfiles-ll +1;
          strfile=files{sliceidx};
 
-         if( 1 || mod(sliceidx,10) == 1)
+         if(mod(sliceidx,10) == 1)
             fprintf('on slice %d, %s\n',sliceidx,strfile)
          end
 
@@ -110,7 +114,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          %% modify header
          % data = dicomread(info); % if we were just making a copy
          % ;;SeriesDescription
-         SeriesDescription_ = [ savedirprefix info.SeriesDescription]; 
+         SeriesDescription_ = [savedirprefix info.SeriesDescription]; 
          
          % ;;Series update
          info.SeriesNumber       = info.SeriesNumber + 200;
@@ -120,10 +124,10 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          %% save new dcm (and maybe make a folder)
          % ;;New folder generation
          newfolder = [savein SeriesDescription_];%
-         fprintf('saving to %s\n', newfolder)
          if (ll==1)
              str_command = ['mkdir ' newfolder]; 
              [status,result] = system(str_command); %disp(str_command); 
+             fprintf('saving to %s\n', newfolder)
          end
          % ;;Save
          info.SmallestImagePixelValue = 0;
@@ -131,7 +135,8 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 
          %info.WindowCenter = meanval;
          %info.WindowWidth = 4*stdval;
-         writeto=[newfolder '/' strfile ];
+         [~, bname, ext ] = fileparts(strfile);
+         writeto=[newfolder '/' bname ext ];
          %writeto=['/Users/lncd/Desktop/dcmcp/' strfile]
          dicomwrite(data, writeto, info); 
 
@@ -149,4 +154,14 @@ function [n,f] = dicom_filelist(patt)
   f = dir(patt);
   f = arrayfun(@(x) fullfile(x.folder, x.name), f, 'Uni', 0);
   n = length(f);
+end
+
+function [n, f] = discard_dup_uid(files)
+   % extract unique instances of
+   %  0002,0003 = META Media Stored SOP Instance UID
+   info = cellfun(@(x) dicominfo(x)    , files, 'Uni', 0);
+   uids = cellfun(@(x) x.SOPInstanceUID, info,  'Uni', 0);
+   [~,i] = unique(uids);
+   f = files(sort(i));
+   n = length(f);
 end
