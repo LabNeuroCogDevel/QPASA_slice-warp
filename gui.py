@@ -19,6 +19,7 @@ from tooltip import ToolTip
 from image_preview import ImagePreview
 from settings import FILEBROWSER, ORIGDIR
 
+
 def bname(path):
     """basename that works for folders
     >>> bname('/a/b/')
@@ -27,6 +28,7 @@ def bname(path):
     'b'
     """
     return [x for x in path.split(os.path.sep) if x][-1]
+
 
 def get_dxyz(img):
     """dims of nifti from 3dinfo as string
@@ -37,6 +39,7 @@ def get_dxyz(img):
     return orig.decode().replace('\t', ' ').replace('\n', '')
     # res=[ float(x) for x in orig.decode().split(' ')]
     # return(res)
+
 
 def subjid_from_dcm(filename):
     """extract PAT ID from dicom so temp folder can have recognizable name
@@ -50,6 +53,7 @@ def subjid_from_dcm(filename):
     else:
         subjid = 'unknown'
     return subjid
+
 
 def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
     """add slice warped into native space to mprage"""
@@ -75,7 +79,7 @@ def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
     # fix low range so exam cart can see mprage
     t1andslc_data = t1andslc_data * intensity_fix
     t1andslc = mprage.from_image(mprage, data=t1andslc_data)
-    return  t1andslc
+    return t1andslc
 
 
 class SliceWarp:
@@ -97,7 +101,6 @@ class SliceWarp:
         self.tempdir = None
         self.dcmdir = None
 
-
         # ----- frames -----
         bframe = tkinter.Frame(master)
         stripframe = tkinter.Frame(bframe)
@@ -117,31 +120,36 @@ class SliceWarp:
         # ----- buttons -----
         redogo = tkinter.Button(stripframe, text='0. start over',
                                 command=self.reset_initial)
-        ToolTip(redogo, 'reset mprage1_res.nii.gz to initial state.\n'+
+        ToolTip(redogo, 'reset mprage1_res.nii.gz to initial state.\n' +
                 "NEEDED before reapplying step 1: bias correction")
 
         biasgo = tkinter.Button(stripframe, text='1. brighten',
                                 command=self.bias_correct)
-        ToolTip(biasgo, 'inhom bias corrction. GRAPPA T1 need FFT shift.\nNOT NEEDED for  MP2RAGE')
+        ToolTip(biasgo, 'inhom bias corrction. GRAPPA T1 need FFT shift.\n' +
+                'NOT NEEDED for  MP2RAGE')
 
         afni_biasgo = tkinter.Button(stripframe, text='brighten (Alt)',
-                                command=self.bias_correct)
-        ToolTip(afni_biasgo, 'Alternative to brighten.\nBias corrction with AFNIs Unifize.')
+                                     command=self.bias_correct)
+        ToolTip(afni_biasgo, 'Alternative to brighten.\n' +
+                             'Bias corrction with AFNIs Unifize.')
 
         thresgo = tkinter.Button(stripframe, text='2. remove artifact',
                                  command=self.apply_threshold)
         ToolTip(thresgo, 'apply thresh to remove bright spot in nasal cavity inhabiting skullstrip.' +
                 '\nartifact introduced by GRAPPA bias correction')
 
-        betgo = tkinter.Button(stripframe, text='(re)strip', command=self.skullstrip)
+        betgo = tkinter.Button(stripframe, text='(re)strip',
+                               command=self.skullstrip)
         ToolTip(betgo, "skull strip with FSL's BET program." +
-                " use 'skull' slider to adjust how much is removed\nhigh value removes more")
+                " use 'skull' slider to adjust how much is removed\n" +
+                "high value removes more")
 
-        robexgo = tkinter.Button(stripframe, text='robex (slow)', command=self.run_robex)
+        robexgo = tkinter.Button(stripframe, text='robex (slow)',
+                                 command=self.run_robex)
         ToolTip(robexgo, "slower 'robust brain extraction' might do better")
 
         warpgo = tkinter.Button(bframe, text='4. warp', command=self.warp)
-        ToolTip(warpgo, "use FSL flirt. *linear* warp T1<->MNI.\n"+
+        ToolTip(warpgo, "use FSL flirt. *linear* warp T1<->MNI.\n" +
                 "START HERE if everything looks good at launch")
 
         makego = tkinter.Button(bframe, text='5. make', command=self.saveandafni)
@@ -165,7 +173,8 @@ class SliceWarp:
         # normalize to backup/original mprage
         should_norm = tkinter.IntVar()
         should_norm.set(1)
-        norm_check = tkinter.Checkbutton(master, text="norm?", variable=should_norm)
+        norm_check = tkinter.Checkbutton(master, text="norm?",
+                                         variable=should_norm)
         norm_check.var = should_norm
 
         tkinter.Label(scaleframe, text="skull  thres").pack(side="top")
@@ -210,7 +219,7 @@ class SliceWarp:
     def setup(self, outputdirroot):
         """setup based on representative dicom file"""
         filename = self.master.filename
-        self.dcmdir = os.path.dirname(filename)
+        self.dcmdir = os.path.abspath(os.path.dirname(filename))
         self.subjid = subjid_from_dcm(filename)
         # ----- go to new directory -----
         self.tempdir = tempfile.mkdtemp(
@@ -231,12 +240,9 @@ class SliceWarp:
         # show the gui
         tkinter.mainloop()
 
-
-
-    # ## -- copy nii or make form dicom (mprage1.nii.gz)
     def backup(self):
         """
-        create a copy of initial that we can return to if bias or thres is wonky
+        create a copy of initial so we can return to if bias or thres is wonky
         """
         cmd = '3dcopy mprage1_res.nii.gz mprage1_res_backup.nii.gz'
         self.logfield.runcmd(cmd)
@@ -252,7 +258,8 @@ class SliceWarp:
             self.logfield.runcmd("dcm2niix -o ./ -f mprage%%e %s" % self.dcmdir)
 
     def get_initial_input(self):
-        """setup input file and run quick (inhomo+bet) steps with the default parameters"""
+        """setup input file and run quick (inhomo+bet)
+           steps with the default parameters"""
         self.make_input()
         self.resample()
         self.updateimg('mprage1_res.nii.gz')
@@ -282,14 +289,16 @@ class SliceWarp:
         self.logfield.shouldhave('mprage1_res.nii.gz')
 
     def apply_threshold(self,
-            inname="mprage1_res.nii.gz",
-            outname="mprage1_res.nii.gz", backup=True):
+                        inname="mprage1_res.nii.gz",
+                        outname="mprage1_res.nii.gz",
+                        backup=True):
         """ get ratio of max slider value and remove from image"""
         if inname == outname:
             # prethres = "mprage1_res_prethres.nii.gz"
             prethres = re.sub('.nii.gz$', '_prethres.nii.gz', inname)
             if not os.path.exists(prethres) or not backup:
-                self.logfield.runcmd("3dcopy -overwrite %s %s" % (inname, prethres))
+                self.logfield.runcmd("3dcopy -overwrite %s %s" % (
+                    inname, prethres))
             inname = prethres
 
         sliderval = self.thres_slider.get()
@@ -303,8 +312,8 @@ class SliceWarp:
         self.updateimg(outname)
 
     def reset_initial(self,
-            inname="mprage1_res_backup.nii.gz",
-            outname="mprage1_res.nii.gz"):
+                      inname="mprage1_res_backup.nii.gz",
+                      outname="mprage1_res.nii.gz"):
         """copy old backup to starting"""
         self.logfield.runcmd('3dcopy -overwrite %s %s' % (inname, outname))
 
@@ -314,7 +323,9 @@ class SliceWarp:
 
         self.updateimg(outname)
 
-    def bias_correct(self, inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
+    def bias_correct(self,
+                     inname="mprage1_res.nii.gz",
+                     outname="mprage1_res.nii.gz"):
         """run fft/fftshift/ifft to correct bias in 7T grappa
         N.B. defaults to rewritting input (mprage1_res.nii.gz)"""
         self.logfield.logtxt("inhomfft %s %s" % (inname, outname), tag='cmd')
@@ -322,12 +333,14 @@ class SliceWarp:
         self.logfield.runcmd('3dcopy -overwrite %s biascor.nii.gz' % outname)
         self.updateimg(outname)
 
-    def afni_bias_correct(self, inname="mprage1_res.nii.gz", outname="mprage1_res.nii.gz"):
+    def afni_bias_correct(self,
+                          inname="mprage1_res.nii.gz",
+                          outname="mprage1_res.nii.gz"):
         """
         remove "shading" artifiact bias field/RF inhomogeneities
-        takes about 25 seconds. much faster than FSL's FAST
+        much faster than FSL's FAST. a bit slower than local inhomofft
         """
-        cmd="3dUnifize -overwrite -prefix %s %s" % (inname, outname)
+        cmd = "3dUnifize -overwrite -prefix %s %s" % (inname, outname)
         self.logfield.runcmd(cmd)
         self.updateimg(outname)
 
@@ -428,7 +441,8 @@ class SliceWarp:
 
         # write it out as a dicom, using matlab
         mlcmd = "rewritedcm('%s','%s')" % (
-            self.dcmdir, os.path.join(self.tempdir, niifile))
+            self.dcmdir,
+            os.path.join(self.tempdir, niifile))
         mlfull = [
             'matlab',
             '-nodisplay',
