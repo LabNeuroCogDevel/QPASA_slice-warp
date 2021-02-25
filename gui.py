@@ -386,11 +386,14 @@ class SliceWarp:
                 '-com', 'SET_OVERLAY slice_mprage_rigid.nii.gz',
                 '-com', 'SET_XHAIRS SINGLE',
                 '-com', 'SET_PBAR_SIGN +'])
-        subprocess.Popen([FILEBROWSER, self.tempdir])
+        try:
+            subprocess.Popen([FILEBROWSER, self.tempdir])
+        except Exception:
+            pass
         # dcm rewrite done last so we can see errors in log window
         self.write_back_to_dicom()
 
-    def make_with_slice(self, mpragefile = 'mprage1_res.nii'):
+    def make_with_slice(self, mpragefile='mprage1_res.nii'):
         """add slice to initial image (with skull)"""
         # maybe we are using compression:
         if not os.path.isfile(mpragefile):
