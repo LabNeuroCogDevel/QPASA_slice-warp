@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import dicom
+import pydicom
 import glob
 import numpy
 import nipy
@@ -28,7 +28,7 @@ def rewritedcm(dcmdir, niifile, protonumadd=210, protoprefix='pySlice_'):
     # (128, 118)          # (96, 118, 128)
 
     ndcm = len(alldcms)
-    newuid = dicom.UID.generate_uid()
+    newuid = pydicom.UID.generate_uid()
     for i in range(ndcm):
         dcm = alldcms[i]
 
@@ -36,7 +36,7 @@ def rewritedcm(dcmdir, niifile, protonumadd=210, protoprefix='pySlice_'):
         ndataford = numpy.fliplr(numpy.flipud(
             niidata[(ndcm - 1 - i), :, :].transpose()))
 
-        d = dicom.read_file(dcm)
+        d = pydicom.read_file(dcm)
         d.pixel_array.flat = ndataford.astype(int).flatten()
         d.PixelData = d.pixel_array.tostring()
 

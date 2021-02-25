@@ -38,8 +38,11 @@ def cmd_single_out(cmd):
 def get_3dbstat(inname, val_option):
     """
     use brickstat to get val_option (e.g. -min, -max)
+    N.B. min ignores -non-zero
     >>> get_3dbstat("example/20210122_grappa.nii.gz", '-min')
-    '1'
+    '0'
+    >>> get_3dbstat("example/20210122_grappa.nii.gz", '-max')
+    '1136'
     """
     return cmd_single_out(['3dBrickStat', '-slow', '-non-zero',
                            val_option, inname])

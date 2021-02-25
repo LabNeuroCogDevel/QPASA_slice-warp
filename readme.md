@@ -70,3 +70,10 @@ Finally, we can copy the newly created dicoms back to the scanner, assuming the 
  * `slice_warp.py` is a guided GUI to select a dicom folder, bet, and warp.
  * `rewritedcm.m` and `rewritedcm.py` are attempts to write the output nii back to dcm. see `rewritedcm.bash` for usage. both are also called by `slice_warp.py`
  * `mkOSxApp.bash` failed attempt to create a launcher for python "app"
+
+# Testing
+
+```
+python3 -m doctest *.py 
+python3 -m pytest test/test_pipeline.py -k test_matlab --pdb
+```
