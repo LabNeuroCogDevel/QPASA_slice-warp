@@ -16,32 +16,44 @@ save new dicoms out in protoprefix+SeriesDescription directory
 """
 
 
-def rewritedcm(dcmdir, niifile, protonumadd=210, protoprefix='pySlice_'):
+def rewritedcm(dcmdir, niifile,
+               protonumadd=210,
+               protoprefix='pySlice_',
+               maxintensity=1000):
+    """
+    create new dicoms using old ones
+    intened to update data to include slice overlay
+    """
     newdata = nipy.load_image(niifile)
     niidata = newdata.get_data()
 
     alldcms = glob.glob(dcmdir + '/*IMA')
+    alldcms = unique_uids(alldcms, niidata.shape[2])
     # niiimg = nipy.load_image(nii)
     # niidata = niiimg.get_data()
 
     # d.pixel_array.shape # niidata.shape
     # (128, 118)          # (96, 118, 128)
 
+    # acquisition direction matters for repacking
+    # 'Tra' (mprage) vs 'Axl' (mp2rage)
+    first = pydicom.read_file(alldcms[0], stop_before_pixels=True)
+    acqdir = first.get_item((0x51, 0x100e)).value.decode('utf-8').strip()
+
     ndcm = len(alldcms)
-    newuid = pydicom.UID.generate_uid()
+    newuid = pydicom.uid.generate_uid()
     for i in range(ndcm):
         dcm = alldcms[i]
 
         # transpose directions, flip horz and flip vert
-        ndataford = numpy.fliplr(numpy.flipud(
-            niidata[(ndcm - 1 - i), :, :].transpose()))
+        ndataford = dcm_rearrange(niidata, i, ndcm, acqdir)
 
         d = pydicom.read_file(dcm)
-        d.pixel_array.flat = ndataford.astype(int).flatten()
-        d.PixelData = d.pixel_array.tostring()
+        d.pixel_array.flat = ndataford.astype(numpy.int16).flatten()
+        d.PixelData = d.pixel_array.tobytes()
 
         # change settings so we can reimport
-        # --- chen's code:
+        # --- CM's code:
         #       SeriesDescription_ = ['BrainStrip_' info.SeriesDescription];
         #       info.SeriesNumber       = info.SeriesNumber + 200;
         #       info.SeriesDescription  = SeriesDescription_;
@@ -54,6 +66,9 @@ def rewritedcm(dcmdir, niifile, protonumadd=210, protoprefix='pySlice_'):
         d.SequenceName = protoprefix + d.SequenceName
         d.ProtocolName = protoprefix + d.ProtocolName
 
+        d.SmallestImagePixelValue = 0
+        d.LargestImagePixelValue = maxintensity
+
         # save directroy sould include seriesdescription
         # savedir = 'slice_warp_dcm'
         savedir = d.SeriesDescription
@@ -61,6 +76,54 @@ def rewritedcm(dcmdir, niifile, protonumadd=210, protoprefix='pySlice_'):
             os.mkdir(savedir)
         outname = savedir + '/' + os.path.basename(dcm)
         d.save_as(outname)
+
+
+def dcm_rearrange(Y, i, ndcm, acqdir='Tra'):
+    """
+    GRAPPA MPRAGE is Tra (newer acq)
+    MP2RAGE is Axl       (old sometimes crashes scanner)
+    >>> egdcm='example/20210220_grappa/20210220LUNA1.MR.TIEJUN_JREF-LUNA.0013.0001.2021.02.20.14.34.40.312500.263962728.IMA'
+    >>> egnii='example/20210122_grappa.nii.gz'
+    >>>  pydicom.read_file(egdcm).pixel_array.shape
+    (256, 184)
+    >>> dcm_rearrange(nipy.load_image(egnii).get_data(), 0, 192).shape
+    (256, 184)
+    """
+    if acqdir == 'Tra':
+        myslice = Y[:, :, i].transpose()
+        data = numpy.rot90(myslice, k=2)
+    else:  # Ax1
+        myslice = Y[(ndcm - 1 - i), :, :].transpose()
+        data = numpy.fliplr(numpy.flipud(myslice))
+    return data
+
+
+def get_sop_uid(dcm):
+    """return unique id of acquisition slice
+    will want to discard dcm if redundant
+    """
+    return pydicom.read_file(dcm, stop_before_pixels=True).SOPInstanceUID
+
+
+def unique_uids(alldcms, nslice=0):
+    """only take unique uid
+    >>> dcms=glob.glob('example/20210220_grappa/*IMA')
+    >>> len(dcms)
+    384
+    >>> len(unique_uids(dcms))
+    192
+    """
+    if len(alldcms) == nslice:
+        return alldcms
+
+    sopdict = {get_sop_uid(dcm): dcm for dcm in alldcms}
+    dcms = sorted(list(sopdict.values()))
+
+    # sanity check
+    if nslice > 0 and len(dcms) != nslice:
+        raise Exception("unique dicoms != number of slices (%d != %d)" %
+                        (len(dcms), nslice))
+    return dcms
 
 
 if __name__ == "__main__":

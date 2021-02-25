@@ -75,5 +75,6 @@ Finally, we can copy the newly created dicoms back to the scanner, assuming the 
 
 ```
 python3 -m doctest *.py 
+python3 -m pytest test/
 python3 -m pytest test/test_pipeline.py -k test_matlab --pdb
 ```

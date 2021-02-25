@@ -2,7 +2,20 @@
 set -e
 
 # rewrite dicoms to look like a nifti
-# usage: rewritedcm.bash "path/to/dcmdir" "path/to/nii.gz" [ "python" ]
+
+usage(){
+cat <<HERE
+rewritedcm.bash "path/to/dcmdir" "path/to/nii.gz" [ "python" ]
+
+Example:
+ ./rewritedcm.bash example/20210220_grappa/ example/20210122_grappa.nii.gz python
+ feh example/pySlice_MPRAGE_GRAPPA1mm/*.png
+
+HERE
+exit
+}
+
+[ $# -eq 0 ] && usage
 
 [ -z "$1" -o ! -d "$1" ] && echo "bad dcm directory '$1'" && exit 1
 [ -z "$2" -o ! -r "$2" ] && echo "bad nifti '$2'"         && exit 1
@@ -22,7 +35,7 @@ thisdir=$(cd $(dirname $0);pwd)
 mlcmd="rewritedcm('$dcmdir','$niifile')"
 
 # reference image
-[ ! -r $dcmdir/img.png ] && (cd $dcmdir; mkniiandimg)
+# [ ! -r $dcmdir/img.png ] && (cd $dcmdir; mkniiandimg)
 
 if [ -z "$3" ]; then
   unset CLICOLOR
@@ -43,3 +56,4 @@ else
   mkniiandimg
 fi
 
+slicer -a nifti_img.png $niifile

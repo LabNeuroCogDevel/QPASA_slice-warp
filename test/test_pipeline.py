@@ -8,16 +8,7 @@ import nipy
 from gui import SliceWarp
 from logfield import LogField
 from settings import ATLAS, TEMPLATEBRAIN, ORIGDIR
-
-
-def allniiclose(a, b):
-    """compare 2 nifti images. input is filenames"""
-    a = nipy.load_image(a).get_data()
-    b = nipy.load_image(b).get_data()
-    # test is useless if all numbers are low
-    assert np.max(np.abs(a)) > 1.5
-    # 1.5 b/c dciom converts floats back to ints
-    return np.allclose(a, b, atol=1.5)
+from test.helper import allniiclose
 
 
 class FakeSlider:
@@ -53,14 +44,19 @@ class FakeSliceWarp(SliceWarp):
 
 @pytest.fixture
 def gui_nii():
+    cwd = os.getcwd()
     os.chdir(ORIGDIR)
-    return FakeSliceWarp('example/20210122_grappa.nii.gz')
+    yield FakeSliceWarp('example/20210122_grappa.nii.gz')
+    os.chdir(cwd)
 
 
 @pytest.fixture
 def gui_dcm():
+    cwd = os.getcwd()
     os.chdir(ORIGDIR)
-    return FakeSliceWarp('example/20210220_grappa/20210220LUNA1.MR.TIEJUN_JREF-LUNA.0013.0001.2021.02.20.14.34.40.312500.263962728.IMA')
+    yield FakeSliceWarp('example/20210220_grappa/20210220LUNA1.MR.TIEJUN_JREF-LUNA.0013.0001.2021.02.20.14.34.40.312500.263962728.IMA')
+    FakeSliceWarp('example/20210122_grappa.nii.gz')
+    os.chdir(cwd)
 
 
 def test_setupnii(gui_nii, tmpdir):
