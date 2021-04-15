@@ -40,6 +40,17 @@ def get_dxyz(img):
     # res=[ float(x) for x in orig.decode().split(' ')]
     # return(res)
 
+def make_ex_thumb(win, show_file=None):
+    """setup example slice image. implemented but unused 20210415"""
+    if show_file is None:
+        show_file = os.path.dirname(os.path.abspath(__file__)) + '/slice_atlas.png'
+    exslice_img = tkinter.PhotoImage(file=show_file)
+    mni_img = tkinter.Label(win)
+    mni_img.image = exslice_img
+    mni_img.configure(image=exslice_img)
+    mni_img.update_idletasks()
+    return(mni_img)
+
 
 def subjid_from_dcm(filename):
     """extract PAT ID from dicom so temp folder can have recognizable name
@@ -161,6 +172,7 @@ class SliceWarp:
         sharego = tkinter.Button(bframe, text='7. watermark', command=self.brainimgageshare)
         ToolTip(sharego, "launch watermarking program: brain image share")
 
+
         #  --- checkbox
         # resample to 2mm
         self.shouldresample = tkinter.IntVar()
@@ -198,19 +210,29 @@ class SliceWarp:
         makego.pack(side="top", fill="both")
         copygo.pack(side="top", fill="both")
         sharego.pack(side="top", fill="both")
+
+
         resampleCheck.pack(side="bottom")
         # norm_check.pack(side="bottom")
 
         # ----- image menu and log -----
         self.imgview.avalImgMenu.pack()
         self.imgview.photolabel.pack()
+
+        # # -- a thumbnail of what the slice should look like
+        # self.mni_img = make_ex_thumb(self.master)
+        # self.mni_img.pack(side="right")
+
         self.logarea.pack()
+
 
         # --- menu
         menu = tkinter.Menu(master)
         menu.add_command(label="another", command=self.open_new)
         menu.add_command(label="prev_folder", command=self.open_prev)
+        menu.add_command(label="MNI ideal", command=self.show_ideal)
         master.config(menu=menu)
+
 
     def updateimg(self, *args):
         "lazy wrapper for imgview so we dont have to change code everywhere"
@@ -543,6 +565,13 @@ class SliceWarp:
         os.chdir(os.path.dirname(filename))
         self.logfield.logtxt("open new folder: %s" % os.getcwd(), tag='info')
         self.imgview.update_img_menu()
+
+    def show_ideal(self):
+        win = tkinter.Toplevel(self.master)
+        win.title("ideal slice location (MNI)")
+        img = make_ex_thumb(win)
+        img.pack()
+
 
     def open_new(self, initialdir=None):
         """start again - open another dicom directory"""
