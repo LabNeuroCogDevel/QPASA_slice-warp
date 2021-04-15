@@ -416,7 +416,7 @@ class SliceWarp:
         if not atlas_fname or not os.path.exists(atlas_fname):
             space = "TLRC"
         else:
-            space = ratthres.cmd_single_out("3dinfo -space %s" % atlas_fname)
+            space = ratthres.cmd_single_out(["3dinfo", "-space", atlas_fname])
         if not os.path.exists(mpragefile):
             print("missing %s, not refiting to tlrc" % mpragefile)
         cmd = '3drefit -space %s %s' % (space, mpragefile)
