@@ -392,6 +392,7 @@ class SliceWarp:
     def saveandafni(self):
         "add slice. save. open folder and afni. copy back to dicom"
         self.make_with_slice()
+        self.match_space_tlrc()
         subprocess.Popen(
             ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz',
                 '-com', 'OPEN_WINDOW axialimage mont=3x3:5',
@@ -405,6 +406,21 @@ class SliceWarp:
             pass
         # dcm rewrite done last so we can see errors in log window
         self.write_back_to_dicom()
+
+    def match_space_tlrc(self, mpragefile="mprage1_res.nii", atlas_fname='slice_mprage_rigid.nii.gz'):
+        """
+        for visualizing, we want mprage1_res to match slice_mprage_rigid.nii.gz
+        to match slice in orig space
+        if atlas_fname doesn't exist, assume TLRC
+        """
+        if not atlas_fname or not os.path.exists(atlas_fname):
+            space = "TLRC"
+        else:
+            space = ratthres.cmd_single_out("3dinfo -space %s" % atlas_fname)
+        if not os.path.exists(mpragefile):
+            print("missing %s, not refiting to tlrc" % mpragefile)
+        cmd = '3drefit -space %s %s' % (space, mpragefile)
+        self.logfield.runcmd(cmd)
 
     def make_with_slice(self, mpragefile='mprage1_res.nii'):
         """add slice to initial image (with skull)"""
