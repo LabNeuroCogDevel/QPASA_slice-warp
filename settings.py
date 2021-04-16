@@ -8,7 +8,7 @@ MRPATH = '/Volumes/HostDicom/'
 # what program to use to open files. "open" on osx. maybe "xdg-open" on linux?
 FILEBROWSER = 'open'  # command to open browser
 if 'Linux' in os.uname().sysname:
-    FILEBROWSER = 'ls'
+    FILEBROWSER = 'xdg-open'
 # where is this script (the slice atlas is probably also here)
 ORIGDIR = os.path.dirname(os.path.realpath(__file__))
 ATLAS = "%s/slice_atlas.nii.gz" % ORIGDIR

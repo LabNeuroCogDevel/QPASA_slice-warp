@@ -236,6 +236,7 @@ class SliceWarp:
         # --- menu
         menu = tkinter.Menu(master)
         menu.add_command(label="MNI ideal", command=self.show_ideal)
+        menu.add_command(label="finder", command=self.launch_browser)
         menu.add_command(label="another", command=self.open_new)
         menu.add_command(label="prev_folder", command=self.open_prev)
         menu.add_command(label="afni", command=self.launch_afni)
@@ -439,6 +440,14 @@ class SliceWarp:
                 '-com', 'SET_XHAIRS SINGLE',
                 '-com', 'SET_PBAR_SIGN +'])
 
+    def launch_browser(self):
+        """show current directory in a file browser
+        don't die if this doesn't work"""
+        try:
+            subprocess.Popen([FILEBROWSER, self.tempdir])
+        except Exception:
+            pass
+
     def saveandafni(self):
         "add slice. save. open folder and afni. copy back to dicom"
         self.make_with_slice()
@@ -449,10 +458,7 @@ class SliceWarp:
 
         # we might need to drag files back and forth.
         # it'll be useful to be in this weirdly named temp dir
-        try:
-            subprocess.Popen([FILEBROWSER, self.tempdir])
-        except Exception:
-            pass
+        self.launch_browser()
 
         # dcm rewrite done last so we can see errors in log window
         self.write_back_to_dicom_ml()
