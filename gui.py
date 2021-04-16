@@ -635,5 +635,5 @@ class SliceWarp:
             return
         self.master.filename = filename
         self.master.update()  # close the file dialog box on OS X
-        self.setup(filename, os.path.dirname(self.tempdir))
+        self.setup(os.path.dirname(self.tempdir), filename)
         self.get_initial_input()
