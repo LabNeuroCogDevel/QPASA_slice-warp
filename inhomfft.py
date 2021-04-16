@@ -84,7 +84,7 @@ def main():
     imdata = img.get_fdata()
     icdata = inhomfft(imdata)
 
-    if len(sys.argv) >= 2:
+    if len(sys.argv) >= 3:
         print(f"saving {sys.argv[2]}...")
         nib.save(nib.Nifti1Image(icdata, img.affine), sys.argv[2])
     else:
@@ -94,9 +94,9 @@ def main():
             """show center of 3d matrix/brain"""
             _, axs = plt.subplots(1, 3)
             slices = [
-                img[nii.shape[0] // 2, :, :],
-                img[:, nii.shape[1] // 2, :],
-                img[:, :, nii.shape[2] // 2],
+                nii[nii.shape[0] // 2, :, :],
+                nii[:, nii.shape[1] // 2, :],
+                nii[:, :, nii.shape[2] // 2],
             ]
             for i, slc in enumerate(slices):
                 axs[i].imshow(slc.T, cmap="gray", origin="lower")
