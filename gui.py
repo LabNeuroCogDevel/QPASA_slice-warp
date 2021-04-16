@@ -34,7 +34,7 @@ def maybe_add_gz(fname):
     "add gz to make .nii.gz if .nii doesn't exist"
     if not os.path.isfile(fname):
         fname = fname + '.gz'
-    return(fname)
+    return fname
 
 
 def get_dxyz(img):
@@ -47,7 +47,8 @@ def get_dxyz(img):
     # res=[ float(x) for x in orig.decode().split(' ')]
     # return(res)
 
-def make_ex_thumb(win, show_file=None):
+
+def show_mni_slice(win, show_file=None):
     """setup example slice image. implemented but unused 20210415"""
     if show_file is None:
         show_file = os.path.dirname(os.path.abspath(__file__)) + '/slice_atlas.png'
@@ -56,7 +57,7 @@ def make_ex_thumb(win, show_file=None):
     mni_img.image = exslice_img
     mni_img.configure(image=exslice_img)
     mni_img.update_idletasks()
-    return(mni_img)
+    return mni_img
 
 
 def subjid_from_dcm(filename):
@@ -101,8 +102,9 @@ def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz', adjust_intens
 
 
 class SliceWarp:
-    def __init__(self, master, template, atlas):
+    """main gui"""
 
+    def __init__(self, master, template, atlas):
         self.slice_mni = atlas
         self.template_brain = template
         self.master = master
@@ -118,6 +120,7 @@ class SliceWarp:
         # will store later
         self.tempdir = None
         self.dcmdir = None
+        self.subjid = None
 
         # ----- frames -----
         bframe = tkinter.Frame(master)
@@ -184,9 +187,9 @@ class SliceWarp:
         # resample to 2mm
         self.shouldresample = tkinter.IntVar()
         self.shouldresample.set(1)
-        resampleCheck = tkinter.Checkbutton(
+        resample_check = tkinter.Checkbutton(
             master, text="2mm?", variable=self.shouldresample)
-        resampleCheck.var = self.shouldresample
+        resample_check.var = self.shouldresample
         self.shouldresample.trace("w", self.resample)
 
         # normalize to backup/original mprage
@@ -219,16 +222,12 @@ class SliceWarp:
         sharego.pack(side="top", fill="both")
 
 
-        resampleCheck.pack(side="bottom")
+        resample_check.pack(side="bottom")
         # norm_check.pack(side="bottom")
 
         # ----- image menu and log -----
         self.imgview.avalImgMenu.pack()
         self.imgview.photolabel.pack()
-
-        # # -- a thumbnail of what the slice should look like
-        # self.mni_img = make_ex_thumb(self.master)
-        # self.mni_img.pack(side="right")
 
         self.logarea.pack()
 
@@ -245,9 +244,10 @@ class SliceWarp:
         "lazy wrapper for imgview so we dont have to change code everywhere"
         self.imgview.updateimg(*args)
 
-    def setup(self, outputdirroot):
+    def setup(self, outputdirroot, filename=None):
         """setup based on representative dicom file"""
-        filename = self.master.filename
+        if not filename:
+            filename = self.master.filename
         self.dcmdir = os.path.abspath(os.path.dirname(filename))
         self.subjid = subjid_from_dcm(filename)
         # ----- go to new directory -----
@@ -263,8 +263,7 @@ class SliceWarp:
         self.logfield.logtxt("saving files to " + self.tempdir)
 
     def start(self):
-        # ----- start -----
-        # run dicom2nii (and skull strip) or 3dcopy as soon as we launch
+        "run dicom2nii (and skull strip) or 3dcopy as soon as we launch"
         self.master.after(0, self.get_initial_input)
         # show the gui
         tkinter.mainloop()
@@ -281,7 +280,7 @@ class SliceWarp:
         TODO: master is holding filename. this is a hold over"""
         # dcm2niix will put the echo number if we ask for it or not
         # do we have a nii or a dcmdir?
-        if re.match('.*\.nii(\.gz)?$', self.master.filename):
+        if re.match(r'.*\.nii(\.gz)?$', self.master.filename):
             self.logfield.runcmd("3dcopy %s mprage1.nii" % self.master.filename)
         else:
             self.logfield.runcmd("dcm2niix -o ./ -f mprage%%e %s" % self.dcmdir)
@@ -398,7 +397,7 @@ class SliceWarp:
                    "This will take a while, are you sure?")
         # return to gui if we dont didn't confirm
         if not prompt:
-            return()
+            return
         # otherwise, proceed
         self.logfield.runcmd("runROBEX.sh mprage1_res.nii.gz mprage_bet.nii.gz")
         self.logfield.shouldhave('mprage_bet.nii.gz')
@@ -461,10 +460,11 @@ class SliceWarp:
         if atlas_fname doesn't exist, assume TLRC
         """
 
+        # only care if the file we are refiting exists
         if not os.path.exists(mpragefile):
             self.logfield.logtxt("missing %s, not refiting to tlrc" % mpragefile)
             return
-        
+
         # default to TLRC, but maybe we should put everything in ORIG
         # ...that would be more accurate
         if not atlas_fname or not os.path.exists(atlas_fname):
@@ -558,6 +558,7 @@ class SliceWarp:
         # os.spawnl(os.P_NOWAIT, *cmd)
         subprocess.Popen(cmd)
 
+
     def copyback(self):
         """copy newly created dicom folder back to original dicom folder location
         """
@@ -577,10 +578,10 @@ class SliceWarp:
         mldir = glob.glob(mldirpattfull)
         if len(mldir) < 1:
             self.logfield.logtxt("did you make? new dicom dir DNE: %s" % mldirpattfull, 'error')
-            return()
+            return
         if len(mldir) > 1:
             self.logfield.logtxt("have more than 1 %s!" % mldirpattfull, 'alert')
-            return()
+            return
         # we only want the last (and hopefuly only match)
         mldir = mldir[-1]
 
@@ -608,10 +609,15 @@ class SliceWarp:
         self.logfield.logtxt("open new folder: %s" % os.getcwd(), tag='info')
         self.imgview.update_img_menu()
 
+        # menu many have changed, but old image is probably still showing
+        # try to update that
+        self.imgview.change_img_from_menu()
+
     def show_ideal(self):
+        "popup window with ideal slice image"
         win = tkinter.Toplevel(self.master)
         win.title("ideal slice location (MNI)")
-        img = make_ex_thumb(win)
+        img = show_mni_slice(win)
         img.pack()
 
 
