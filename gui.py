@@ -18,6 +18,7 @@ from logfield import LogField
 from tooltip import ToolTip
 from image_preview import ImagePreview
 from settings import FILEBROWSER, ORIGDIR
+from rewritedcm import rewritedcm
 
 
 def bname(path):
@@ -237,6 +238,7 @@ class SliceWarp:
         menu.add_command(label="another", command=self.open_new)
         menu.add_command(label="prev_folder", command=self.open_prev)
         menu.add_command(label="MNI ideal", command=self.show_ideal)
+        menu.add_command(label="afni", command=self.launch_afni)
         master.config(menu=menu)
 
 
@@ -451,7 +453,18 @@ class SliceWarp:
             pass
 
         # dcm rewrite done last so we can see errors in log window
-        self.write_back_to_dicom()
+        self.write_back_to_dicom_ml()
+
+
+    def alternate_dcms(self):
+        "dcm dirs for higher res slice. and using python"
+        # save out mlSliceFirst -- using higher res mprage
+        now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        self.write_back_to_dicom_ml('anatAndSlice_unres_slicefirst..nii.gz',
+                                    now + '_mlSliceFirst_')
+
+        self.write_back_to_dicom_py('anatAndSlice_unres_slicefirst..nii.gz',
+                                    now + 'pySliceFirst_')
 
     def match_space_tlrc(self, mpragefile="mprage1_res.nii", atlas_fname='slice_mprage_rigid.nii.gz'):
         """
@@ -510,19 +523,32 @@ class SliceWarp:
         t1slc_unres = add_slice(origfile, 'slice_mprage_unres.nii.gz', adjust_intensity=False)
         nipy.save_image(t1slc_unres, 'anatAndSlice_unres_slicefirst.nii.gz')
 
-    def write_back_to_dicom(self, niifile='anatAndSlice_unres.nii.gz'):
+
+    def write_back_to_dicom_py(self, niifile='anatAndSlice_unres.nii.gz', prefix=None):
+        """using python instead of matlab to create new dicoms with slice
+        TODO: something off with dicom ids? scan computer wont read
+        """
+        self.logfield.logtxt('rewritedcm("%s","%s")' % (self.dcmdir, niifile),
+                             'info')
+        rewritedcm(self.dcmdir, niifile, protoprefix=prefix)
+        # prefix None, then 'pySlice_.....'
+
+
+    def write_back_to_dicom_ml(self, niifile='anatAndSlice_unres.nii.gz', saveprefix=None):
         """put slice+anat into dicom ready to send back to scanner"""
 
-        # # using python
-        # # something off with dicom ids? scan computer wont read
-        # print('rewritedcm("%s","anatAndSlice_unres.nii.gz")'%dcmdir)
-        # rewritedcm(dcmdir, 'anatAndSlice_unres.nii.gz')
-
-
         # write it out as a dicom, using matlab
-        mlcmd = "rewritedcm('%s','%s')" % (
-            self.dcmdir,
-            os.path.join(self.tempdir, niifile))
+        if saveprefix:
+            mlcmd = "rewritedcm('%s','%s', '%s')" % (
+                self.dcmdir,
+                os.path.join(self.tempdir, niifile),
+                saveprefix)
+        else:
+            # savedirprefix matlab default looks like
+            # [datestr(now(),'yyyymmdd_HHMMSS') '_mlBrainStrip_' ];
+            mlcmd = "rewritedcm('%s','%s')" % (
+                self.dcmdir,
+                os.path.join(self.tempdir, niifile))
         mlfull = [
             'matlab',
             '-nodisplay',

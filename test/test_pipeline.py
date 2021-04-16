@@ -92,7 +92,7 @@ def test_matlab(tmpdir, gui_dcm):
     slice_example = os.path.join(ORIGDIR, 'example/anatAndSlice_unres.nii.gz')
     # copy b/c defaults to saving in same directory as nifti
     shutil.copy(slice_example, gui_dcm.tempdir)
-    gui_dcm.write_back_to_dicom()
+    gui_dcm.write_back_to_dicom_ml()
 
     dcmout = glob.glob(gui_dcm.tempdir + "/*mlBrainStrip*")[0]
     assert os.path.isdir(dcmout)
