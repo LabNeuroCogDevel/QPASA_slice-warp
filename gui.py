@@ -235,10 +235,11 @@ class SliceWarp:
 
         # --- menu
         menu = tkinter.Menu(master)
+        menu.add_command(label="MNI ideal", command=self.show_ideal)
         menu.add_command(label="another", command=self.open_new)
         menu.add_command(label="prev_folder", command=self.open_prev)
-        menu.add_command(label="MNI ideal", command=self.show_ideal)
         menu.add_command(label="afni", command=self.launch_afni)
+        menu.add_command(label="alt dcm", command=self.alternate_dcms)
         master.config(menu=menu)
 
 
@@ -406,7 +407,8 @@ class SliceWarp:
         self.updateimg('mprage_bet.nii.gz')
 
     def warp(self):
-        """flirt and applyxf4D"""
+        """flirt and applyxf4D
+        TODO: add option for ANTs?"""
         self.logfield.runcmd(
             "flirt -in %s -ref mprage_bet.nii.gz -omat direct_std2native_aff.mat -out std_in_native.nii.gz -dof 12 -interp spline" %
             self.template_brain)
@@ -456,15 +458,16 @@ class SliceWarp:
         self.write_back_to_dicom_ml()
 
 
-    def alternate_dcms(self):
+    def alternate_dcms(self, niifile='anatAndSlice_unres_slicefirst.nii.gz'):
         "dcm dirs for higher res slice. and using python"
-        # save out mlSliceFirst -- using higher res mprage
-        now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        self.write_back_to_dicom_ml('anatAndSlice_unres_slicefirst..nii.gz',
-                                    now + '_mlSliceFirst_')
+        if not os.path.isfile(niifile):
+            self.logfield.logtxt("Ut Oh!? DNE: " + niifile, 'error')
+            return
 
-        self.write_back_to_dicom_py('anatAndSlice_unres_slicefirst..nii.gz',
-                                    now + 'pySliceFirst_')
+        now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        self.write_back_to_dicom_ml(niifile, now + '_mlSliceFirst_')
+        self.write_back_to_dicom_py(niifile, now + '_pySliceFirst_')
+
 
     def match_space_tlrc(self, mpragefile="mprage1_res.nii", atlas_fname='slice_mprage_rigid.nii.gz'):
         """
