@@ -405,27 +405,45 @@ class SliceWarp:
         self.logfield.runcmd(
             "applyxfm4D %s mprage_bet.nii.gz slice_mprage_rigid.nii.gz direct_std2native_aff.mat -singlematrix" %
             self.slice_mni)
-        self.logfield.runcmd("slicer slice_mprage_rigid.nii.gz -a slice_only.pgm", logit=False)
-        self.updateimg('slice_mprage_rigid.nii.gz', '', 'slice_only.pgm')
-        self.updateimg('mprage_bet.nii.gz', 'slice_mprage_rigid.nii.gz', 'betRed.pgm')
-        self.updateimg('slice_mprage_rigid.nii.gz', 'mprage_bet.nii.gz', 'sliceRed.pgm')
+        self.updateimg('std_in_native.nii.gz', 'mprage_bet.nii.gz', 'MNIredBet.pgm')        # mni with bet in red. confirm warp
+        self.updateimg('slice_mprage_rigid.nii.gz', '', 'slice_only.pgm')                   # just the slice
+        self.updateimg('mprage_bet.nii.gz', 'slice_mprage_rigid.nii.gz', 'betRed.pgm')      # slice with bet edges in red
+        self.updateimg('slice_mprage_rigid.nii.gz', 'mprage_bet.nii.gz', 'sliceRed.pgm')    # bet with slice edge in red
         self.logfield.logtxt("[%s] warp finished!" % datetime.datetime.now(), tag='alert')
+
+    def launch_afni(self, underlay='mprage1_res.nii.gz', mont_str=""):
+        """launch afni
+        """
+        # pre 20210415
+        # underlay = 'anatAndSlice_unres.nii.gz'
+        # mont_str = 'mont=3x3:5'
+        overlay = "slice_mprage_rigid.nii.gz"
+
+        # make sure underlay and overlay match space
+        self.match_space_tlrc(underlay, overlay)
+        subprocess.Popen(
+            ['afni', '-com', 'SET_UNDERLAY %s' % underlay,
+                '-com', 'OPEN_WINDOW axialimage %s' % mont_str,
+                '-com', 'OPEN_WINDOW sagittalimage %s' % mont_str,
+                '-com', 'SET_OVERLAY %s' % overlay,
+                '-com', 'SET_XHAIRS SINGLE',
+                '-com', 'SET_PBAR_SIGN +'])
 
     def saveandafni(self):
         "add slice. save. open folder and afni. copy back to dicom"
         self.make_with_slice()
+        # set mprage1_res.nii.gz  to TLRC. probably done in launch_afni,
+        # but want to make sure even if mprage1_res is not the underlay
         self.match_space_tlrc()
-        subprocess.Popen(
-            ['afni', '-com', 'SET_UNDERLAY anatAndSlice_unres.nii.gz',
-                '-com', 'OPEN_WINDOW axialimage mont=3x3:5',
-                '-com', 'OPEN_WINDOW sagittalimage mont=3x3:5',
-                '-com', 'SET_OVERLAY slice_mprage_rigid.nii.gz',
-                '-com', 'SET_XHAIRS SINGLE',
-                '-com', 'SET_PBAR_SIGN +'])
+        self.launch_afni()
+
+        # we might need to drag files back and forth.
+        # it'll be useful to be in this weirdly named temp dir
         try:
             subprocess.Popen([FILEBROWSER, self.tempdir])
         except Exception:
             pass
+
         # dcm rewrite done last so we can see errors in log window
         self.write_back_to_dicom()
 
@@ -435,12 +453,23 @@ class SliceWarp:
         to match slice in orig space
         if atlas_fname doesn't exist, assume TLRC
         """
+
+        if not os.path.exists(mpragefile):
+            self.logfield.logtxt("missing %s, not refiting to tlrc" % mpragefile)
+            return
+        
+        # default to TLRC, but maybe we should put everything in ORIG
+        # ...that would be more accurate
         if not atlas_fname or not os.path.exists(atlas_fname):
             space = "TLRC"
         else:
             space = ratthres.cmd_single_out(["3dinfo", "-space", atlas_fname])
-        if not os.path.exists(mpragefile):
-            print("missing %s, not refiting to tlrc" % mpragefile)
+
+        # no need to run if they already match
+        cur_space = ratthres.cmd_single_out(["3dinfo", "-space", mpragefile])
+        if cur_space == space:
+            return
+
         cmd = '3drefit -space %s %s' % (space, mpragefile)
         self.logfield.runcmd(cmd)
 
