@@ -66,7 +66,7 @@ def subjid_from_dcm(filename):
     return subjid
 
 
-def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
+def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz', adjust_intensity=True):
     """add slice warped into native space to mprage"""
     mprage = nipy.load_image(mpragefile)
     t1 = mprage.get_data()
@@ -78,7 +78,7 @@ def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
     # should also be corrected in inhomofft
     # ..and we should be using original
     # ..and dcm maxintensity=1000 in rewritedcm.m
-    if numpy.max(t1) < 10000:
+    if numpy.max(t1) < 10000 and adjust_intensity:
         intensity_fix = 10000
     else:
         intensity_fix = 1
@@ -496,6 +496,11 @@ class SliceWarp:
         origdxyz = get_dxyz('mprage1.nii')
         self.logfield.runcmd('3dresample -overwrite -inset anatAndSlice_res.nii.gz -dxyz %s -prefix anatAndSlice_unres.nii.gz' %
                origdxyz)
+
+        # try going the other direction
+        self.logfield.runcmd('3dresample -overwrite -inset slice_mprage_rigid.nii.gz -master mprage1.nii -prefix slice_mprage_unres.nii.gz -rmode NN')
+        self.add_slice("mprage1.nii", 'slice_mprage_unres.nii.gz', adjust_intensity=False)
+        nipy.save_image(t1andslc, 'anatAndSlice_unres_slicefirst.nii.gz')
 
     def write_back_to_dicom(self, niifile='anatAndSlice_unres.nii.gz'):
         """put slice+anat into dicom ready to send back to scanner"""
