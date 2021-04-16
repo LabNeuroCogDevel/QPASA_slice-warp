@@ -30,6 +30,13 @@ def bname(path):
     return [x for x in path.split(os.path.sep) if x][-1]
 
 
+def maybe_add_gz(fname):
+    "add gz to make .nii.gz if .nii doesn't exist"
+    if not os.path.isfile(fname):
+        fname = fname + '.gz'
+    return(fname)
+
+
 def get_dxyz(img):
     """dims of nifti from 3dinfo as string
     >>> get_dxyz('example/MPRAGE.nii')
@@ -473,11 +480,11 @@ class SliceWarp:
         cmd = '3drefit -space %s %s' % (space, mpragefile)
         self.logfield.runcmd(cmd)
 
-    def make_with_slice(self, mpragefile='mprage1_res.nii'):
+    def make_with_slice(self, mpragefile='mprage1_res.nii', origfile='mprage1.nii'):
         """add slice to initial image (with skull)"""
         # maybe we are using compression:
-        if not os.path.isfile(mpragefile):
-            mpragefile = mpragefile + '.gz'
+        mpragefile = maybe_add_gz(mpragefile)
+        origfile = maybe_add_gz(origfile)
 
         if not os.path.isfile(mpragefile):
             self.logfield.logtxt("Ut Oh!? DNE: %s" % mpragefile, 'error')
@@ -493,14 +500,15 @@ class SliceWarp:
         self.updateimg('anatAndSlice_res.nii.gz', '', 'anatAndSlice.pgm')
 
         # resample back
-        origdxyz = get_dxyz('mprage1.nii')
+        origdxyz = get_dxyz(origfile)
         self.logfield.runcmd('3dresample -overwrite -inset anatAndSlice_res.nii.gz -dxyz %s -prefix anatAndSlice_unres.nii.gz' %
                origdxyz)
 
         # try going the other direction
-        self.logfield.runcmd('3dresample -overwrite -inset slice_mprage_rigid.nii.gz -master mprage1.nii -prefix slice_mprage_unres.nii.gz -rmode NN')
-        self.add_slice("mprage1.nii", 'slice_mprage_unres.nii.gz', adjust_intensity=False)
-        nipy.save_image(t1andslc, 'anatAndSlice_unres_slicefirst.nii.gz')
+        self.logfield.runcmd('3dresample -overwrite -inset slice_mprage_rigid.nii.gz -master %s -prefix slice_mprage_unres.nii.gz -rmode NN' %
+                origfile)
+        t1slc_unres = add_slice(origfile, 'slice_mprage_unres.nii.gz', adjust_intensity=False)
+        nipy.save_image(t1slc_unres, 'anatAndSlice_unres_slicefirst.nii.gz')
 
     def write_back_to_dicom(self, niifile='anatAndSlice_unres.nii.gz'):
         """put slice+anat into dicom ready to send back to scanner"""
