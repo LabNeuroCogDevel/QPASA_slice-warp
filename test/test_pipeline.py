@@ -5,10 +5,12 @@ import glob
 import shutil
 import numpy as np
 import nipy
-from gui import SliceWarp
+from gui import SliceWarp, add_slice
 from logfield import LogField
 from settings import ATLAS, TEMPLATEBRAIN, ORIGDIR
 from test.helper import allniiclose
+
+EGFILESDIR = os.path.join(ORIGDIR, "example/testing")
 
 
 class FakeSlider:
@@ -87,9 +89,24 @@ def test_warp(tmpdir, gui_dcm):
     assert os.path.isfile(final_out)
 
 
+def test_add_slice(tmpdir):
+    os.chdir(tmpdir)
+    eg_slice = os.path.join(EGFILESDIR, "slice_mprage_rigid.nii.gz")
+    eg_mprage = os.path.join(EGFILESDIR, "mprage1_res.nii.gz")
+    add_slice(eg_mprage, eg_slice, adjust_intensity=False)
+    # TODO: check values?
+
+
+@pytest.mark.skip
+def test_make_slice(tmpdir, gui_nii):
+    gui_nii.setup(tmpdir)
+    # TODO: copy mprage1_res and slice_mprage_rigid here
+    gui_nii.make_with_slice(mpragefile='mprage1_res.nii')
+
+
 def test_matlab(tmpdir, gui_dcm):
     gui_dcm.setup(tmpdir)
-    slice_example = os.path.join(ORIGDIR, 'example/anatAndSlice_unres.nii.gz')
+    slice_example = os.path.join(EGFILESDIR, 'anatAndSlice_unres.nii.gz')
     # copy b/c defaults to saving in same directory as nifti
     shutil.copy(slice_example, gui_dcm.tempdir)
     gui_dcm.write_back_to_dicom()
