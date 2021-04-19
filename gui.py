@@ -243,6 +243,15 @@ class SliceWarp:
         menu.add_command(label="alt dcm", command=self.alternate_dcms)
         master.config(menu=menu)
 
+        # macOS/OSX (20210419-Sierra 10.12.6) only shows "python" on menubar
+        # add a menubutton we can click to get all
+        mb=tkinter.Menubutton(master,text="menus")
+        mb.menu = tkinter.Menu(mb)
+        mb['menu'] = mb.menu
+        mb.menu.add_cascade(label="All",menu=menu)
+        mb.menu.add_command(label="quit", command=master.quit())
+        mb.pack(side="right")
+
 
     def updateimg(self, *args):
         "lazy wrapper for imgview so we dont have to change code everywhere"
