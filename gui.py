@@ -463,7 +463,10 @@ class SliceWarp:
         # set mprage1_res.nii.gz  to TLRC. probably done in launch_afni,
         # but want to make sure even if mprage1_res is not the underlay
         self.match_space_tlrc()
-        self.launch_afni()
+        afni_underlay="mprage_forafni.nii.gz"
+        if not os.path.isfile(afni_underlay):
+            self.logfield.runcmd(f"3dcopy mprage1_res_backup.nii.gz {afni_underlay}")
+        self.launch_afni(afni_underlay)
 
         # we might need to drag files back and forth.
         # it'll be useful to be in this weirdly named temp dir
