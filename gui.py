@@ -183,7 +183,9 @@ class SliceWarp:
         sharego = tkinter.Button(bframe, text='7. watermark', command=self.brainimgageshare)
         ToolTip(sharego, "launch watermarking program: brain image share")
 
-
+        make_copy_old_go = tkinter.Button(bframe, text='(alt) make+copy old', command=self.make_copy_old)
+        ToolTip(make_copy_old_go, "make old dicom dir and copy back")
+        
         #  --- checkbox
         # resample to 2mm
         self.shouldresample = tkinter.IntVar()
@@ -221,6 +223,7 @@ class SliceWarp:
         makego.pack(side="top", fill="both")
         copygo.pack(side="top", fill="both")
         sharego.pack(side="top", fill="both")
+        make_copy_old_go.pack(side="top", fill="both")
 
 
         resample_check.pack(side="bottom")
@@ -480,7 +483,8 @@ class SliceWarp:
         self.launch_browser()
 
         # dcm rewrite done last so we can see errors in log window
-        self.write_back_to_dicom_ml()
+        self.alternate_dcms()
+        #self.write_back_to_dicom_ml()
 
 
     def alternate_dcms(self, niifile='anatAndSlice_unres_slicefirst.nii.gz'):
@@ -489,7 +493,7 @@ class SliceWarp:
             self.logfield.logtxt("Ut Oh!? DNE: " + niifile, 'error')
             return
 
-        now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.write_back_to_dicom_ml(niifile, now + '_mlSliceFirst_')
         self.write_back_to_dicom_py(niifile, now + '_pySliceFirst_')
 
@@ -612,8 +616,12 @@ class SliceWarp:
         # os.spawnl(os.P_NOWAIT, *cmd)
         subprocess.Popen(cmd)
 
+    def make_copy_old(self):
+        # before 2021-04-19
+        self.write_back_to_dicom_ml()
+        self.copyback("_mlBrainStrip_")
 
-    def copyback(self):
+    def copyback(self, prefix="_mlSliceFirst_"):
         """copy newly created dicom folder back to original dicom folder location
         """
         # we'll create a new directory at the same level
@@ -623,8 +631,11 @@ class SliceWarp:
         # YYYYMMDD_mlBrainStrip_SeriesDescrp is the default name from rewritedcm.m
         # we may want to change this to the python output at some time
         # (like when ML lisc expires)
+        #prefix="_mlSliceFirst_" # default on 2021-04-19
+        # _mlBrainStrip_        # before 2021-04-19
+        # TODO: copy all?
         mldirpatt = datetime.datetime.now().\
-            strftime('%Y%m%d_*_mlBrainStrip_*/')
+            strftime(f'%Y%m%d_*{prefix}*/')
         # actual name is with hhmmss -- but that was some time ago
         # strftime('%Y%m%d_%H%M%S_mlBrainStrip_*/')
 

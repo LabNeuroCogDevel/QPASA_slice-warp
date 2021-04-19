@@ -13,6 +13,8 @@ import os
 read in dicoms from a given directory
 rewrite over data with that from given nifti
 save new dicoms out in protoprefix+SeriesDescription directory
+
+20210419 -- imports but cannot be found!
 """
 
 
