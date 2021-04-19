@@ -183,7 +183,7 @@ class SliceWarp:
         sharego = tkinter.Button(bframe, text='7. watermark', command=self.brainimgageshare)
         ToolTip(sharego, "launch watermarking program: brain image share")
 
-        make_copy_old_go = tkinter.Button(bframe, text='5. make+copy old', command=self.make_copy_old)
+        make_copy_old_go = tkinter.Button(bframe, text='(alt) make+copy old', command=self.make_copy_old)
         ToolTip(make_copy_old_go, "make old dicom dir and copy back")
         
         #  --- checkbox
