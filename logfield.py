@@ -58,9 +58,9 @@ class LogField:
         """run pipe and display colored output"""
         output, error = p.communicate()
         if logit:
-            self.logtxt(output.decode(), 'output')
+            self.logtxt(output.decode('utf-8','replace'), 'output')
         if error.decode():
-            self.logtxt("ERROR: " + error.decode(), 'error')
+            self.logtxt("ERROR: " + error.decode('utf-8','replace'), 'error')
 
 
     def runcmd(self, cmd, logit=True):
