@@ -31,11 +31,6 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     end
 
     cd(expfolder)
-    % MP2RGAW 2nd TI image
-    optupdown = 1; %1;          % slice order
-    maxintensity = 1000;%1000   % ### adjust the value to make 3D rendering better w/o threshold in Siemens 3D    
-    bartthreh = 0.5;
-    winsize = 3;
 
     % chen codE:
     %P = [pfolder t1fname]; t1data = load_untouch_nii(P); t1img = double(t1data.img);
@@ -45,6 +40,11 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     strfileext = '*.IMA';
     [nfiles, files] = dicom_filelist(strfileext);
     nslices_nii = size(Y, 3)
+    
+    
+    % MP2RGAW 2nd TI image
+    maxintensity = 1000;%1000   % ### adjust the value to make 3D rendering better w/o threshold in Siemens 3D    
+                        % TODO:  max(Y(:)) ??
     
     uid = dicomuid;
     disp('DICOM conversion - ');
