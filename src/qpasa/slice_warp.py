@@ -68,7 +68,7 @@ def main():
     initialdir = MRPATH
     in_filename = None
     if os.uname().nodename in ["reese", "kt"]:  # , "7TMacMini.local"]:
-        initialdir = os.getwd()
+        initialdir = os.getcwd()
     if len(sys.argv) > 1:
         in_filename = sys.argv[1]
 
