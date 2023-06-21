@@ -4,6 +4,11 @@ The tool walks through (1) coregistation of an outlined oblique slice (in standa
 
 It is written in python/tk and guides the user through brain extraction (skull stripping) and linear warping an atlas to native space both via FSL tools. A Matlab script is used to write the generated subject atlas as dicom files that can be imported back to the scanner for guided slice placement. AFNI's gui is used for interactively exploring the slice warpped from standard to subject space.
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8066027.svg)](https://doi.org/10.5281/zenodo.8066027)
+
+
+
 # Depends
 
 * python3: nipy, pydicom, numpy, nibabel
