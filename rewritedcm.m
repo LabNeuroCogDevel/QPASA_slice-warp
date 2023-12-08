@@ -56,12 +56,29 @@ function rewritedcm(expfolder,niifile,savedirprefix)
        fprintf('WARNING: slice and ndcm differ %d files != %d slices\n', ...
                nfiles, nslices_nii);
        [nfiles, files] = discard_dup_uid(files);
-       % still fails
-       if(nslices_nii ~= nfiles)
-          msg = sprintf('mismatch even after discard! (%d files != %d slices)',...
-                        nfiles, nslices_nii);
-          error(msg)
-       end
+
+    % de-dupping didn't help?
+    % maybe we're using a GRE or other multiecho sequence?
+    if(nslices_nii ~= nfiles)
+       fprintf('mismatch after discard! (%d files != %d slices)',...
+          nfiles, nslices_nii);
+
+       [nfiles, files] = first_echo_only(files);
+    end
+
+    % Nothing we can do. exit out
+    if(nslice_nii ~= nfiles)
+       msg = sprintf(['!! PROBLEM !!\n' ...
+                     'Tried removing dups and picking only first echo. Still...\n' ...
+                     'Cannot create new dicoms with atlas overlay to send to scanner:\n' ...
+                     '  Number of dicom files does not match number of slices in nifti image ' ...
+                     '(%d files != %d slices)\n\n' ...
+                     '  1st  dicom: "%s"\n' ...
+                     '  last dicom: "%s"\n' ...
+                     '  nifti: "%s"\n'
+                     ],...
+                     nfiles, nslices_nii, files{1}, files{length(files)}, niifile);
+       error(msg)
     end
 
     % how were images aquired? how do we put our LPI nifti back to dcm
@@ -163,5 +180,13 @@ function [n, f] = discard_dup_uid(files)
    uids = cellfun(@(x) x.SOPInstanceUID, info,  'Uni', 0);
    [~,i] = unique(uids);
    f = files(sort(i));
+   n = length(f);
+end
+
+function [n, f] = first_echo_only(files)
+   % take only first echo number of what might be a multi-echo sequence
+   info = cellfun(@(x) dicominfo(x)     , files, 'Uni', 0);
+   echonums = cellfun(@(x) x.EchoNumbers, info,  'Uni', 0);
+   f = files(echonums==echonums{1});
    n = length(f);
 end
