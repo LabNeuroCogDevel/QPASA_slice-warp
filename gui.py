@@ -58,10 +58,10 @@ def subjid_from_dcm(filename):
 def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz'):
     """add slice warped into native space to mprage"""
     mprage = nipy.load_image(mpragefile)
-    t1 = mprage.get_data()
+    t1 = mprage.get_fdata()
 
     sliceimg = nipy.load_image(atlas_fname)
-    slice_atlas = sliceimg.get_data()
+    slice_atlas = sliceimg.get_fdata()
 
     # if bias correction removed DC component. add intensity back
     # should also be corrected in inhomofft
@@ -420,6 +420,7 @@ class SliceWarp:
         #if os.path.isfile(intensity_corrected):
         #    mpragefile = intensity_corrected
 
+        self.logfield.logtxt("# adding atlas as overlay to %s" % mpragefile, 'info')
         t1andslc = add_slice(mpragefile)
         nipy.save_image(t1andslc, 'anatAndSlice_res.nii.gz')
         # update window
