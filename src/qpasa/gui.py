@@ -53,6 +53,14 @@ def show_mni_slice(win, show_file=None):
     """setup example slice image. implemented but unused 20210415"""
     if show_file is None:
         show_file = os.path.dirname(os.path.abspath(__file__)) + '/slice_atlas.png'
+        # 20240224 - __file__ is now g
+        if not os.path.isfile(show_file):
+            show_file = os.path.dirname(os.path.abspath(__file__)) + '../../data/slice_atlas.png'
+        if not os.path.isfile(show_file):
+            print(f"no file like '{show_file}'")
+            import importlib_resources
+            show_file = importlib_resources.files('qpasa') / 'data/slice_atlas.png'
+
     try:
         exslice_img = tkinter.PhotoImage(file=show_file)
 
@@ -247,6 +255,7 @@ class SliceWarp:
         # --- menu
         menu = tkinter.Menu(master)
         menu.add_command(label="MNI ideal", command=self.show_ideal)
+        menu.add_command(label="change atlas", command=self.change_atlas)
         menu.add_command(label="finder", command=self.launch_browser)
         menu.add_command(label="another", command=self.open_new)
         menu.add_command(label="prev_folder", command=self.open_prev)
@@ -693,6 +702,19 @@ class SliceWarp:
         img = show_mni_slice(win)
         img.pack()
 
+    def change_atlas(self):
+        """
+        SIDEFFECT: change input nifti mni slice to add to co-regested mprage
+        """
+        new_atlas = \
+            tkinter.filedialog.askopenfilename(
+                    # initialdir=os.path.basename(self.slice_mni)
+                    title="Select a new MNI space slice annotated atlas",
+            )
+        if not new_atlas:
+            return
+        self.logfield.logtxt(f"changing atlas to {new_atlas}; was {self.slice_mni}", tag='alert')
+        self.slice_mni = new_atlas
 
     def open_new(self, initialdir=None):
         """start again - open another dicom directory"""
