@@ -5,12 +5,14 @@ import glob
 import shutil
 import numpy as np
 import nipy
-from gui import SliceWarp, add_slice
-from logfield import LogField
-from settings import ATLAS, TEMPLATEBRAIN, ORIGDIR
+from qpasa.gui import SliceWarp, add_slice
+from qpasa.logfield import LogField
+from qpasa.settings import ATLAS, TEMPLATEBRAIN
 from test.helper import allniiclose
 
+ORIGDIR = os.path.dirname(os.path.dirname(__file__))
 EGFILESDIR = os.path.join(ORIGDIR, "example/testing")
+assert os.path.isdir(EGFILESDIR)
 
 
 class FakeSlider:
