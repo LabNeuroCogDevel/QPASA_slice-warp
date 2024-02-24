@@ -8,6 +8,22 @@ It is written in python/tk and guides the user through brain extraction (skull s
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8066027.svg)](https://doi.org/10.5281/zenodo.8066027)
 
 
+# Install
+
+The quickest way to get the `qpasa` command is to run
+```
+pip install git+https://github.com/LabNeuroCogDevel/QPASA_slice-warp.git
+```
+
+(and have e.g. `~/.local/bin` in your `$PATH`)
+
+
+Alternatively, you can clone and run from the repo directory like
+```
+git clone https://github.com/LabNeuroCogDevel/QPASA_slice-warp.git
+cd QPASA_slice-warp.git
+./qpasa
+```
 
 # Depends
 
