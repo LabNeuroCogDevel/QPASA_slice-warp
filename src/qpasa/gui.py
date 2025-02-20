@@ -4,6 +4,7 @@ import glob
 import re
 import os
 import sys
+#import shutil # for 'which' to set matlab. not used
 import tkinter
 from tkinter import WORD
 import tempfile
@@ -86,14 +87,25 @@ def subjid_from_dcm(filename):
         subjid = 'unknown'
     return subjid
 
+def get_niidata(nii):
+    """
+    newer nibabel uses get_fdata but not ready to give up on old get_data
+    """
+    try:
+        data = nii.get_fdata()
+    except AttributeError as e:
+        data = nii.get_data()
+    return data
 
 def add_slice(mpragefile, atlas_fname='slice_mprage_rigid.nii.gz', adjust_intensity=True):
     """add slice warped into native space to mprage"""
     mprage = nipy.load_image(mpragefile)
-    t1 = mprage.get_data()
+
+    # newer nibabel uses get_fdata
+    t1 = get_niidata(mprage)
 
     sliceimg = nipy.load_image(atlas_fname)
-    slice_atlas = sliceimg.get_data()
+    slice_atlas = get_niidata(sliceimg)
 
     # if bias correction removed DC component. add intensity back
     # should also be corrected in inhomofft
@@ -468,8 +480,15 @@ class SliceWarp:
     def launch_browser(self):
         """show current directory in a file browser
         don't die if this doesn't work"""
+
+        # if on windows via WSL, change path
+        if FILEBROWSER == 'explorer.exe':
+            tmpdir = subprocess.check_output(['wslpath', '-w', self.tempdir]).decode().replace('\n', '')
+        else:
+            tmpdir = self.tempdir
+        self.logfield.logtxt("trying to open: " + FILEBROWSER + " " + tmpdir)
         try:
-            subprocess.Popen([FILEBROWSER, self.tempdir])
+            subprocess.Popen([FILEBROWSER, tmpdir])
         except Exception:
             pass
 
@@ -507,8 +526,9 @@ class SliceWarp:
             return
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.write_back_to_dicom_ml(niifile, now + '_mlSliceFirst_')
+        # run py first since matlab is more likely to fail
         self.write_back_to_dicom_py(niifile, now + '_pySliceFirst_')
+        self.write_back_to_dicom_ml(niifile, now + '_mlSliceFirst_')
 
 
     def match_space_tlrc(self, mpragefile="mprage1_res.nii", atlas_fname='slice_mprage_rigid.nii.gz'):
@@ -594,8 +614,15 @@ class SliceWarp:
             mlcmd = "rewritedcm('%s','%s')" % (
                 self.dcmdir,
                 os.path.join(self.tempdir, niifile))
+
+        # on WSL it's matlab.exe
+        ml_exe = 'matlab'
+        # does not run. linux->windows path issues?
+        #if shutil.which('matlab.exe'):
+        #    ml_exe = 'matlab.exe'
+
         mlfull = [
-            'matlab',
+            ml_exe,
             '-nodisplay',
             '-r',
             "try, addpath('%s');%s;catch e, disp(e), end, quit()" %
@@ -656,7 +683,11 @@ class SliceWarp:
         mldir = glob.glob(mldirpattfull)
         if len(mldir) < 1:
             self.logfield.logtxt("did you make? new dicom dir DNE: %s" % mldirpattfull, 'error')
+            # switch to python if no matlab
+            if prefix == "_mlSliceFirst_":
+                self.copyback(prefix="_pySliceFirst_")
             return
+
         if len(mldir) > 1:
             self.logfield.logtxt("have more than 1 %s!" % mldirpattfull, 'alert')
             return

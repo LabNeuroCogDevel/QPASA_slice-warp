@@ -8,7 +8,9 @@ import os.path
 MRPATH = '/Volumes/G/'
 # what program to use to open files. "open" on osx. maybe "xdg-open" on linux?
 FILEBROWSER = 'open'  # command to open browser
-if 'Linux' in os.uname().sysname:
+if os.path.isfile('/mnt/c/Windows/explorer.exe'):
+    FILEBROWSER = 'explorer.exe'
+elif 'Linux' in os.uname().sysname:
     FILEBROWSER = 'xdg-open'
 # where is this script (the slice atlas is probably also here)
 ORIGDIR = os.path.dirname(os.path.realpath(__file__))

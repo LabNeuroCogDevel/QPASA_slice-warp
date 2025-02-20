@@ -27,7 +27,12 @@ def rewritedcm(dcmdir, niifile,
     intened to update data to include slice overlay
     """
     newdata = nipy.load_image(niifile)
-    niidata = newdata.get_data()
+    # newer nibabel uses get_fdata
+    try:
+        niidata = newdata.get_data()
+    except AttributeError as e:
+        niidata = newdata.get_fdata()
+
 
     alldcms = glob.glob(dcmdir + '/*IMA')
     alldcms = unique_uids(alldcms, niidata.shape[2])
