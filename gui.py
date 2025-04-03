@@ -53,7 +53,10 @@ def show_mni_slice(win, show_file=None):
     """setup example slice image. implemented but unused 20210415"""
     if show_file is None:
         show_file = os.path.dirname(os.path.abspath(__file__)) + '/slice_atlas.png'
-    exslice_img = tkinter.PhotoImage(file=show_file)
+    if not os.path.isfile(show_file):
+        self.logfield.logtxt("Ut Oh!? DNE:"+show_file, 'error')
+    show_img = tkinter.PhotoImage(show_file)
+    exslice_img = tkinter.PhotoImage(show_img)
     mni_img = tkinter.Label(win)
     mni_img.image = exslice_img
     mni_img.configure(image=exslice_img)
