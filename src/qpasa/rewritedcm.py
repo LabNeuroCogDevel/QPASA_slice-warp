@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-import pydicom
-import glob
-import numpy
-import nipy
-import sys
-import os
-# see pydicom
-# https://pydicom.github.io/pydicom/stable/auto_examples/input_output/plot_write_dicom.html
-
-
 """
 read in dicoms from a given directory
 rewrite over data with that from given nifti
 save new dicoms out in protoprefix+SeriesDescription directory
+see pydicom
+ https://pydicom.github.io/pydicom/stable/auto_examples/input_output/plot_write_dicom.html
 
 20210419 -- imports but cannot be found!
+20250319 -- previous test on 7TPlus shows slice order very wrong
 """
+
+import glob
+import sys
+import os
+import pydicom
+import numpy
+import nipy
+
+# dont need to apply sform/qform. load_image same as load_untouched in matlab
+#from numpy.linalg import inv
+#from scipy.ndimage import affine_transform
 
 
 def rewritedcm(dcmdir, niifile,
@@ -33,6 +37,10 @@ def rewritedcm(dcmdir, niifile,
     except AttributeError as e:
         niidata = newdata.get_fdata()
 
+    # 20250319 - need to undo the affine transform? decide, no looks like untouch load
+    #undo = inv(newdata.affine)
+    #niidata = affine_transform(niidata, undo)
+
 
     alldcms = glob.glob(dcmdir + '/*IMA')
     alldcms = unique_uids(alldcms, niidata.shape[2])
@@ -44,7 +52,7 @@ def rewritedcm(dcmdir, niifile,
 
     # acquisition direction matters for repacking
     # 'Tra' (mprage) vs 'Axl' (mp2rage)
-    first = pydicom.read_file(alldcms[0], stop_before_pixels=True)
+    first = pydicom.dcmread(alldcms[0], stop_before_pixels=True)
     acqdir = first.get_item((0x51, 0x100e)).value.decode('utf-8').strip()
 
     ndcm = len(alldcms)
@@ -55,7 +63,7 @@ def rewritedcm(dcmdir, niifile,
         # transpose directions, flip horz and flip vert
         ndataford = dcm_rearrange(niidata, i, ndcm, acqdir)
 
-        d = pydicom.read_file(dcm)
+        d = pydicom.dcmread(dcm)
         d.pixel_array.flat = ndataford.astype(numpy.int16).flatten()
         d.PixelData = d.pixel_array.tobytes()
 
@@ -91,7 +99,7 @@ def dcm_rearrange(Y, i, ndcm, acqdir='Tra'):
     MP2RAGE is Axl       (old sometimes crashes scanner)
     >>> egdcm='example/20210220_grappa/20210220LUNA1.MR.TIEJUN_JREF-LUNA.0013.0001.2021.02.20.14.34.40.312500.263962728.IMA'
     >>> egnii='example/20210122_grappa.nii.gz'
-    >>>  pydicom.read_file(egdcm).pixel_array.shape
+    >>>  pydicom.dcmread(egdcm).pixel_array.shape
     (256, 184)
     >>> dcm_rearrange(nipy.load_image(egnii).get_data(), 0, 192).shape
     (256, 184)
@@ -109,7 +117,7 @@ def get_sop_uid(dcm):
     """return unique id of acquisition slice
     will want to discard dcm if redundant
     """
-    return pydicom.read_file(dcm, stop_before_pixels=True).SOPInstanceUID
+    return pydicom.dcmread(dcm, stop_before_pixels=True).SOPInstanceUID
 
 
 def unique_uids(alldcms, nslice=0):
