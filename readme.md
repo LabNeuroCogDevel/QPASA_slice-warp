@@ -99,3 +99,37 @@ python3 -m doctest *.py
 python3 -m pytest test/
 python3 -m pytest test/test_pipeline.py -k test_matlab --pdb
 ```
+
+# Notes on Matlab code
+`load_untouch` does not apply sform or qform. We're assuming this is important when putting data back into dicoms!
+
+```bash
+3dinfo -aform_real example/MPRAGE.nii
+```
+
+```
+# mat44 (aform_real):
+      0.010386     -0.026947     -1.949725      94.026360
+      1.717818      0.055802      0.010786    -112.157684
+     -0.055645      1.717633     -0.030939    -140.046310
+
+```
+
+
+```matlab
+addpath('nifti_tools/')
+nii = load_nii('MPRAGE.nii');
+unt = load_untouch_nii('MPRAGE.nii');
+
+[size(nii.img); size(unt.img)]
+%    96   118   128
+%   118   128    96
+
+
+subplot(1,2,1)
+imshow(imadjust(nii.img(:,:,end/2))); title('load nii');
+subplot(1,2,2);
+imshow(imadjust(unt.img(:,:,end/2))); title('load untouched');
+```
+
+![](./load_untouch.png)
