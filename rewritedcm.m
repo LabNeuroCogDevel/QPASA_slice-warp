@@ -14,8 +14,13 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 %     - highres: collected sagital (x)
 %     - med res: (5min acq) collected axial (z)
 %
+   % various places load_untouch_nii might be
+   % from https://github.com/sergivalverde/nifti_tools
+   % "Tools for NIfTI and ANALYZE image" on file exchange
+   % patch to octave-image still open (2025) https://savannah.gnu.org/patch/index.php?9853#comment0
    addpath('/opt/ni_tools/NlfTI/')
    addpath('/opt/ni_tools/NIfTI/')
+   addpath(fullfile(fileparts(mfilename('fullpath')),'nifti_tools'))
    
 % rewritedcm('/Volumes/Disk_C/Temp/20170929Luna/DICOM/MP2RAGE_SCOUT/','/Users/lncd/Desktop/slice_warps/david_20170929/anatAndSlice.nii.gz')
 
@@ -39,7 +44,8 @@ function rewritedcm(expfolder,niifile,savedirprefix)
 
     % chen codE:
     %P = [pfolder t1fname]; t1data = load_untouch_nii(P); t1img = double(t1data.img);
-    img = load_untouch_nii(niifile);
+    img=load_untouch_nii(niifile);
+    %img = niftiread(niifile);
     Y = double(img.img); % 96 x 118 x 128  % nfiles=96
                          % 184x 210 x 192  % 20180216 1x1x1, nfiles=192
     strfileext = '*.IMA';
@@ -160,6 +166,8 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     end
     
     cd(oldpwd)
+end
+
 end
 
 function [n,f] = dicom_filelist(patt)
