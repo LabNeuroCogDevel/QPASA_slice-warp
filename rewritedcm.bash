@@ -5,7 +5,7 @@ set -e
 
 usage(){
 cat <<HERE
-rewritedcm.bash "path/to/dcmdir" "path/to/nii.gz" [ "python" ]
+rewritedcm.bash "path/to/dcmdir" "path/to/nii.gz" [ "python"|"octave" ]
 
 Example:
  ./rewritedcm.bash example/20210220_grappa/ example/20210122_grappa.nii.gz python
@@ -32,28 +32,40 @@ dcmdir=$(mkcannon $1)
 niifile=$(mkcannon $2)
 
 thisdir=$(cd $(dirname $0);pwd)
-mlcmd="rewritedcm('$dcmdir','$niifile')"
 
 # reference image
 # [ ! -r $dcmdir/img.png ] && (cd $dcmdir; mkniiandimg)
 
-if [ -z "$3" ]; then
-  unset CLICOLOR
-  unset LSCOLORS
-  set -x
-  matlab -nodisplay -r "try, addpath('$thisdir');$mlcmd;catch e, disp(e), end, quit()"
-  set +x
-  cd $(dirname $niifile)/mlBrainStrip_*/
-  mkniiandimg
+case "${3:-matlab}" in
+   matlab)
+     unset CLICOLOR
+     unset LSCOLORS
+     mlcmd="rewritedcm('$dcmdir','$niifile')"
+     set -x
+     matlab -nodisplay -r "try, addpath('$thisdir');$mlcmd;catch e, disp(e), end, quit()"
+     set +x
+     cd $(dirname $niifile)/*mlBrainStrip_*/
+     mkniiandimg
+     ;;
+  python)
+     cd $(dirname $niifile)
 
-else
-  cd $(dirname $niifile)
+     set -x
+     $thisdir/rewritedcm.py "$dcmdir" "$niifile"
+     set +x
+     cd pySlice*/
+     mkniiandimg
+     ;;
+  octave)
+     unset CLICOLOR
+     unset LSCOLORS
 
-  set -x
-  $thisdir/rewritedcm.py "$dcmdir" "$niifile"
-  set +x
-  cd pySlice*/
-  mkniiandimg
-fi
+     mlcmd="rewritedcm('$dcmdir','$niifile', '$(date +%F)_octave_')"
+     set -x
+     octave --eval "try, addpath('$thisdir');$mlcmd;catch e, disp(e), end, quit()"
+     set +x
+     cd $(dirname $niifile)/*_octave_*/
+     mkniiandimg;;
+esac
 
 slicer -a nifti_img.png $niifile
