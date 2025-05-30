@@ -280,6 +280,7 @@ class SliceWarp:
         will need to resample back before putting into dicoms
         """
         if self.shouldresample.get():  # and min_d < 1:
+            os.environ['AFNI_NO_OBLIQUE_WARNING']='YES'
             cmd = "3dresample -overwrite -inset mprage1.nii -dxyz 2 2 2 -prefix mprage1_res.nii.gz"
         else:
             self.shouldresample.set(0)
