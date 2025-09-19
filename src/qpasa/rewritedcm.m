@@ -50,23 +50,24 @@ function rewritedcm(expfolder,niifile,savedirprefix)
                          % 184x 210 x 192  % 20180216 1x1x1, nfiles=192
     strfileext = '*.IMA';
     [nfiles, files] = dicom_filelist(strfileext);
-    nslices_nii = size(Y, 3)
+    nslices_nii = size(Y, 3);
     
     uid = dicomuid;
     disp('DICOM conversion - ');
     disp(pwd);
-    fprintf('have %d files in %s. nifti is %d slices\n',...
+    fprintf('have %d files in %s. nifti is %d slices in Z\n',...
             nfiles, expfolder, nslices_nii);
     
     if(nslices_nii ~= nfiles)
        fprintf('WARNING: slice and ndcm differ %d files != %d slices\n', ...
                nfiles, nslices_nii);
        [nfiles, files] = discard_dup_uid(files);
+    end
 
     % de-dupping didn't help?
     % maybe we're using a GRE or other multiecho sequence?
     if(nslices_nii ~= nfiles)
-       fprintf('mismatch after discard! (%d files != %d slices)',...
+       fprintf('mismatch after discard! (%d files != %d slices). Trying only first EchoNumber',...
           nfiles, nslices_nii);
 
        [nfiles, files] = first_echo_only(files);
@@ -98,6 +99,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
     acqdir = firstinfo.Private_0051_100e; % 'Tra' vs 'Axl'
     acqmat = [firstinfo.Rows, firstinfo.Columns];
     
+    fprintf('# prepared to writting %d dcm files\n', nfiles);
     for ll=1:nfiles
         % ;;DICOM read
          
@@ -150,7 +152,7 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          if (ll==1)
              str_command = ['mkdir ' newfolder]; 
              [status,result] = system(str_command); %disp(str_command); 
-             fprintf('saving to %s\n', newfolder)
+             fprintf('# saving to %s\n', newfolder)
          end
          % ;;Save
          info.SmallestImagePixelValue = 0;
@@ -164,11 +166,12 @@ function rewritedcm(expfolder,niifile,savedirprefix)
          dicomwrite(data, writeto, info); 
 
     end
+
+    fprintf('# last wrote %i: %s\n', ll, writeto);
     
     cd(oldpwd)
 end
 
-end
 
 function [n,f] = dicom_filelist(patt)
   % f=strsplit(ls(patt));
@@ -193,8 +196,8 @@ end
 
 function [n, f] = first_echo_only(files)
    % take only first echo number of what might be a multi-echo sequence
-   info = cellfun(@(x) dicominfo(x)     , files, 'Uni', 0);
-   echonums = cellfun(@(x) x.EchoNumbers, info,  'Uni', 0);
-   f = files(echonums==echonums{1});
+   info = cellfun(@(x) dicominfo(x)    , files, 'Uni', 0);
+   echonums = cellfun(@(x) x.EchoNumber, info,  'Uni', 0);
+   f = files([echonums{:}]==echonums{1});
    n = length(f);
 end
