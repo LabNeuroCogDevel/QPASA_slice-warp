@@ -1,0 +1,20 @@
+[project]
+name = "qpasa"
+version = "0.2.0"
+description = "MR slice positioning with standard to native registration using AFNI and FSL"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+"nipy",
+"pydicom",
+'pillow ; platform_system == "Darwin"']
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qpasa = ["data/slice_atlas.nii.gz", "data/slice_atlas.png"]
+
+[project.scripts]
+qpasa = "qpasa.slice_warp:main"
+>>>>>>> 083cdf1 (feat(pyproject): update from setup.cfg)
