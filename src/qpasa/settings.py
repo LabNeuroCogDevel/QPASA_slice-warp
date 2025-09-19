@@ -4,6 +4,10 @@ global settings
 import os
 import errno
 import os.path
+
+# 20250919 - silence afni version info. less stderr for e.g. 3dcopy
+os.environ['AFNI_QUIET_STARTUP']='YES'
+
 # where is the scanner mounted
 MRPATH = '/Volumes/G/'
 # what program to use to open files. "open" on osx. maybe "xdg-open" on linux?

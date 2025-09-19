@@ -318,6 +318,11 @@ class SliceWarp:
         self.logfield.logtxt("reading from " + self.dcmdir)
         self.logfield.logtxt("saving files to " + self.tempdir)
 
+        # 20250919 - AFNI_QUIET_STARTUP supresses version info
+        #   so explicilty ask for it on startup
+        self.logfield.runcmd("3dresample -version")
+        self.logfield.runcmd("flirt -version")
+
     def start(self):
         "run dicom2nii (and skull strip) or 3dcopy as soon as we launch"
         self.master.after(0, self.get_initial_input)
