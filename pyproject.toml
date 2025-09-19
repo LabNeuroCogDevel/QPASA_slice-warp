@@ -1,0 +1,7 @@
+[project]
+name = "slice-warp-gui"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["matplotlib", "nibabel", "nipy", "numpy", "pillow", "pydicom", "pytest"]
