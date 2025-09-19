@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=QPASA Warper
+Type=Application
+Comment=Slice Warping to refernce atlas using FSL and AFNI
+Path=/opt/ni_tools/QPASA_slice-warp/
+Exec=/opt/ni_tools/QPASA_slice-warp/slice_warp.py
+Terminal=true
+
