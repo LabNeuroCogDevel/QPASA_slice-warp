@@ -24,6 +24,22 @@ class LogField:
         logarea.tag_config('output', foreground='grey')
         logarea.tag_config('error', foreground='red')
         logarea.tag_config('alert', foreground='orange')
+        self.logfile = None  # see set_logfile
+
+    def __del__(self):
+        "Deconstructor. dont leave dangling file handler."
+        if self.logfile and not self.logfile.closed:
+            self.logfile.close()
+
+    def set_logfile(self, logfilepath):
+        """
+        Logfile not set during class init.
+        Working dir is changed after gui is initialized (based on file picker)
+        logtxt appends to file only when self.logfile is set (by calling this function)
+        @param logfilepath path of file to append logs
+        """
+        print("# Writting log to %s\n" % logfilepath)
+        self.logfile = open(logfilepath, 'w')
 
     def logtxt(self, txt, tag='output'):
         """
@@ -33,6 +49,11 @@ class LogField:
         if not self.logarea:
             print("%s: %s" % (tag, txt))
             return
+
+        if self.logfile:
+            self.logfile.write("%s: %s\n" % (tag, txt))
+            self.logfile.flush() # dont wait for program to close to write
+
         self.logarea.mark_set(tkinter.INSERT, tkinter.END)
         self.logarea.config(state="normal")
         self.logarea.insert(tkinter.INSERT, txt + "\n", tag)
