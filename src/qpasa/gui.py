@@ -287,9 +287,20 @@ class SliceWarp:
 
     def setup(self, outputdirroot, filename=None):
         """setup based on representative dicom file"""
+
+        # where does input come from?
+        # likley the file picker gui but maybe the terminal
         if not filename:
             filename = self.master.filename
-        self.dcmdir = os.path.abspath(os.path.dirname(filename))
+
+        # we expect to get a example dicom file in the acquisition dir
+        # but on the CLI, might get the actual directory
+        if os.path.isdir(filename):
+            print("WARNING: got directory but expecting dicom")
+            self.dcmdir = os.path.abspath(filename)
+        else:
+            self.dcmdir = os.path.abspath(os.path.dirname(filename))
+
         self.subjid = subjid_from_dcm(filename)
         # ----- go to new directory -----
         self.tempdir = tempfile.mkdtemp(
@@ -297,6 +308,10 @@ class SliceWarp:
                 prefix=self.subjid + "_")
         print(self.tempdir)
         os.chdir(self.tempdir)
+
+        # added 20250919. log commands and errors for easier remote debug
+        self.logfield.set_logfile(os.path.join(self.tempdir,'qpasa.log'))
+
         # os.symlink(atlas, './')
 
         # ----- startup -----
@@ -493,7 +508,7 @@ class SliceWarp:
             pass
 
     def saveandafni(self):
-        "add slice. save. open folder and afni. copy back to dicom"
+        "'Make' button. add slice. save. open folder and afni. copy back to dicom"
         self.make_with_slice()
         # set mprage1_res.nii.gz  to TLRC. probably done in launch_afni,
         # but want to make sure even if mprage1_res is not the underlay
@@ -522,13 +537,22 @@ class SliceWarp:
     def alternate_dcms(self, niifile='anatAndSlice_unres_slicefirst.nii.gz'):
         "dcm dirs for higher res slice. and using python"
         if not os.path.isfile(niifile):
-            self.logfield.logtxt("Ut Oh!? DNE: " + niifile, 'error')
+            self.logfield.logtxt("Ut Oh!? input file for dcm rewrite DNE: " + niifile, 'error')
             return
 
         now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         # run py first since matlab is more likely to fail
-        self.write_back_to_dicom_py(niifile, now + '_pySliceFirst_')
-        self.write_back_to_dicom_ml(niifile, now + '_mlSliceFirst_')
+        try:
+            self.write_back_to_dicom_py(niifile, now + '_pySliceFirst_')
+        except Exception as e:
+            print(e)
+            self.logfield.logtxt("failed to write _pySliceFirst_: %s" % e, 'error')
+
+        try:
+            self.write_back_to_dicom_ml(niifile, now + '_mlSliceFirst_')
+        except Exception as e:
+            print(e)
+            self.logfield.logtxt("failed to write _mlSliceFirst_: %s" % e, 'error')
 
 
     def match_space_tlrc(self, mpragefile="mprage1_res.nii", atlas_fname='slice_mprage_rigid.nii.gz'):
@@ -593,7 +617,7 @@ class SliceWarp:
         """using python instead of matlab to create new dicoms with slice
         TODO: something off with dicom ids? scan computer wont read
         """
-        self.logfield.logtxt('rewritedcm("%s","%s")' % (self.dcmdir, niifile),
+        self.logfield.logtxt("rewritedcm('%s','%s') # python" % (self.dcmdir, niifile),
                              'info')
         rewritedcm(self.dcmdir, niifile, protoprefix=prefix)
         # prefix None, then 'pySlice_.....'
@@ -632,7 +656,7 @@ class SliceWarp:
         self.logfield.logruncmd(cmdstr)
         self.logarea.config(state="normal")
 
-        print(cmdstr)
+        print("# running matlab rewritedcm: %s" % cmdstr)
 
         # run matlab in an empty enviornment so we dont get ls colors
         mlp = subprocess.Popen(
@@ -682,9 +706,10 @@ class SliceWarp:
         mldirpattfull = os.path.join(self.tempdir, mldirpatt)
         mldir = glob.glob(mldirpattfull)
         if len(mldir) < 1:
-            self.logfield.logtxt("did you make? new dicom dir DNE: %s" % mldirpattfull, 'error')
+            self.logfield.logtxt("did you 'make'? new dicom dir DNE: %s" % mldirpattfull, 'error')
             # switch to python if no matlab
             if prefix == "_mlSliceFirst_":
+                self.logfield.logtxt("Switching to python prefix", 'alert')
                 self.copyback(prefix="_pySliceFirst_")
             return
 
