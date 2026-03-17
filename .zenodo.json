@@ -1,0 +1,30 @@
+{
+    "title": "QPASA",
+    "version": "0.2.0",
+    "keywords": [ "" ],
+    "creators": [
+        {
+            "name": "Foran, Will",
+            "orcid": "0000-0001-7491-9798"
+        }
+    ],
+    "contributors": [
+        {
+            "name": "Calabro, Finnegan",
+            "orcid": "0000-0002-8092-3942",
+            "affiliation": "University of Pittsburgh",
+            "type": "ProjectLeader"
+        },
+        {
+            "name": "Luna, Beatriz",
+            "orcid": "0000-0002-9929-2458",
+            "affiliation": "University of Pittsburgh",
+            "type": "ProjectManager"
+        }
+    ],
+    "access_right": "open",
+    "license": "AGPL-3.0-or-later",
+    "upload_type": "software",
+    "language": "eng",
+    "grants": [ {"id": "R01MH067924"} ]
+}
